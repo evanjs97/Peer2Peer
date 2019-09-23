@@ -1,8 +1,13 @@
 package cs555.p2p.node;
 
 import cs555.p2p.messaging.Event;
+import cs555.p2p.messaging.RegisterRequest;
+import cs555.p2p.messaging.RegistrationFailure;
+import cs555.p2p.messaging.RegistrationSuccess;
+import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
 
+import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -28,8 +33,25 @@ public class DiscoveryNode implements Node{
 		this.nodeIDMappings = new ConcurrentHashMap<>();
 	}
 
-	private void registrationFailure(String host, int port) {
+	private void registrationFailure(HostPort hostPort) {
+		try {
+			TCPSender sender = new TCPSender(new Socket(hostPort.host, hostPort.port));
+			sender.sendData(new RegistrationFailure().getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
+	private void registrationSuccess(HostPort hostPort) {
+		HostPort randomPeer = getRandomPeer();
+		try {
+			TCPSender sender = new TCPSender(new Socket(hostPort.host, hostPort.port));
+			sender.sendData(new RegistrationSuccess(randomPeer.host, randomPeer.port).getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void init() {
@@ -39,20 +61,29 @@ public class DiscoveryNode implements Node{
 		serverThread.start();
 	}
 
-	private void registerPeer(String host, int port, String id) {
-		HostPort previous = nodeIDMappings.putIfAbsent(id, new HostPort(host, port));
-		if(previous != null) registrationFailure(host, port);
+	private void registerPeer(RegisterRequest request, Socket socket) {
+		HostPort add = new HostPort(socket.getInetAddress().getCanonicalHostName(), request.getPort());
+		HostPort previous = nodeIDMappings.putIfAbsent(request.getIdentifier(), add);
+		if(previous != null) registrationFailure(add);
+		else registrationSuccess(add);
 	}
 
-	private void getRandomPeer() {
+	private HostPort getRandomPeer() {
 		Object[] keys = nodeIDMappings.keySet().toArray();
 		String key = (String) keys[ThreadLocalRandom.current().nextInt(0, keys.length)];
-		HostPort value = nodeIDMappings.get(key);
+		return nodeIDMappings.get(key);
 	}
 
 	@Override
 	public void onEvent(Event event, Socket socket) {
-
+		switch (event.getType()) {
+			case REGISTRATION_REQUEST:
+				registerPeer((RegisterRequest) event, socket);
+				break;
+			default:
+				LOGGER.warning("No actions found for message of type: " + event.getType());
+				break;
+		}
 	}
 
 	public static void main(String[] args) {

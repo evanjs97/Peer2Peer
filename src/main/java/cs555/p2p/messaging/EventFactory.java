@@ -45,6 +45,15 @@ public class EventFactory {
 			Type type = Type.valueOf(din.readInt());
 			Event e = null;
 			switch (type) {
+				case REGISTRATION_REQUEST:
+					e = new RegisterRequest(din);
+					break;
+				case ID_NOT_AVAILABLE:
+					e = new RegistrationFailure();
+					break;
+				case REGISTRATION_SUCCESS:
+
+					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");
 					break;

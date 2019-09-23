@@ -1,19 +1,27 @@
 package cs555.p2p.node;
 
+import com.sun.xml.internal.bind.v2.model.core.ID;
 import cs555.p2p.messaging.Event;
+import cs555.p2p.messaging.RegisterRequest;
+import cs555.p2p.messaging.RegistrationSuccess;
+import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
+import cs555.p2p.util.IDUtils;
 
+import java.io.IOException;
 import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class PeerNode implements Node{
 	private final static Logger LOGGER = Logger.getLogger(PeerNode.class.getName());
+	private final static int IDENTITIFER_BITS = 16;
 
 	private final String discoveryHost;
 	private final int discoveryPort;
 	private int port;
 	private String identifier;
+	private final String[][] routingTable;
 
 	private PeerNode(String discoveryHost, int discoveryPort) {
 		this(discoveryHost, discoveryPort,0);
@@ -32,6 +40,7 @@ public class PeerNode implements Node{
 		this.discoveryPort = discoveryPort;
 		this.port = port;
 		this.identifier = identifier;
+		this.routingTable = new String[IDENTITIFER_BITS/4][IDENTITIFER_BITS/4];
 	}
 
 	private void init() {
@@ -39,22 +48,43 @@ public class PeerNode implements Node{
 		this.port = tcpServer.getLocalPort();
 		Thread serverThread = new Thread(tcpServer);
 		serverThread.start();
+		register();
 	}
 
 	private void generateID() {
-
+		this.identifier = IDUtils.generateIDByTimestamp(IDUtils.ID_SIZE.ID_SHORT);
 	}
 
 	private void register() {
 		if(identifier == null) generateID();
+		try {
+			TCPSender sender = new TCPSender(new Socket(this.discoveryHost, this.discoveryPort));
+			sender.sendData(new RegisterRequest(identifier, port).getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
+	private void p2pEntry(RegistrationSuccess response) {
 
 	}
 
 
 	@Override
 	public void onEvent(Event event, Socket socket) {
-
+		switch (event.getType()) {
+			case REGISTRATION_SUCCESS:
+				p2pEntry((RegistrationSuccess) event);
+				break;
+			case ID_NOT_AVAILABLE:
+				generateID();
+				register();
+				break;
+			default:
+				LOGGER.warning("No actions found for message of type: " + event.getType());
+				break;
+		}
 	}
 
 	public static void main(String[] args) {
