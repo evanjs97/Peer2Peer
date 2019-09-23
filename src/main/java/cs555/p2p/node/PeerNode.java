@@ -1,6 +1,5 @@
 package cs555.p2p.node;
 
-import com.sun.xml.internal.bind.v2.model.core.ID;
 import cs555.p2p.messaging.Event;
 import cs555.p2p.messaging.RegisterRequest;
 import cs555.p2p.messaging.RegistrationSuccess;
