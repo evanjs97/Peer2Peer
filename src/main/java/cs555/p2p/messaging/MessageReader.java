@@ -1,5 +1,7 @@
 package cs555.p2p.messaging;
 
+import cs555.p2p.util.IDUtils;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.time.Instant;
@@ -37,6 +39,10 @@ public class MessageReader {
 		return new String(readByteArr());
 	}
 
+	public String readHex() throws IOException {
+		return IDUtils.convertBytesToHex(readByteArr());
+	}
+
 	public byte[] readByteArr() throws IOException {
 		byte[] bytes = new byte[din.readInt()];
 		din.readFully(bytes);
@@ -54,6 +60,22 @@ public class MessageReader {
 		int listSize = din.readInt();
 		for(int i = 0; i < listSize; i++) {
 			ints.add(readString());
+		}
+	}
+
+	public String[] read1DStringArray() throws IOException {
+		int arrSize = readInt();
+		String[] arr = new String[arrSize];
+		for(int i = 0; i < arr.length; i++) {
+			arr[i] = readString();
+		}
+		return arr;
+	}
+
+	public void read1DStringArrayList(List<String[]> list) throws IOException {
+		int arraySize = readInt();
+		for(int i = 0; i < arraySize; i++) {
+			list.add(read1DStringArray());
 		}
 	}
 

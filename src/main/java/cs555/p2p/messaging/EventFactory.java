@@ -52,7 +52,10 @@ public class EventFactory {
 					e = new RegistrationFailure();
 					break;
 				case REGISTRATION_SUCCESS:
-
+					e = new RegistrationSuccess(din);
+					break;
+				case ENTRY_REQUEST:
+					e = new EntryRequest(din);
 					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");

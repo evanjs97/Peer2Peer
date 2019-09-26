@@ -13,7 +13,8 @@ public interface Event {
 	enum Type {
 		REGISTRATION_REQUEST(1),
 		ID_NOT_AVAILABLE(2),
-		REGISTRATION_SUCCESS(3);
+		REGISTRATION_SUCCESS(3),
+		ENTRY_REQUEST(4);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

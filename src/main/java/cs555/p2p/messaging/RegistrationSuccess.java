@@ -8,6 +8,14 @@ public class RegistrationSuccess implements Event{
 	private final String entryHost;
 	private final int entryPort;
 
+	public String getEntryHost() {
+		return entryHost;
+	}
+
+	public int getEntryPort() {
+		return entryPort;
+	}
+
 	public RegistrationSuccess(String host, int port) {
 		this.entryHost = host;
 		this.entryPort = port;

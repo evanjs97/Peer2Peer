@@ -5,5 +5,6 @@ import cs555.p2p.messaging.Event;
 import java.net.Socket;
 
 public interface Node {
-	public void onEvent(Event event, Socket socket);
+	void onEvent(Event event, Socket socket);
+
 }

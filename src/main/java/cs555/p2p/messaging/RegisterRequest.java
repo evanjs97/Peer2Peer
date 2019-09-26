@@ -26,7 +26,7 @@ public class RegisterRequest implements Event{
 		String id = "";
 		int port = 0;
 		try {
-			id = messageReader.readString();
+			id = messageReader.readHex();
 			port = messageReader.readInt();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -43,7 +43,9 @@ public class RegisterRequest implements Event{
 	@Override
 	public byte[] getBytes() throws IOException {
 		MessageMarshaller messageMarshaller = new MessageMarshaller();
-		messageMarshaller.marshallIntStringInt(getType().getValue(), identifier, port);
+		messageMarshaller.writeInt(getType().getValue());
+		messageMarshaller.writeHex(identifier);
+		messageMarshaller.writeInt(port);
 		return messageMarshaller.getMarshalledData();
 	}
 

@@ -1,5 +1,7 @@
 package cs555.p2p.messaging;
 
+import cs555.p2p.util.IDUtils;
+
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -43,6 +45,10 @@ public class MessageMarshaller {
 		dout.write(strBytes);
 	}
 
+	public void writeHex(String hex) throws IOException {
+		writeByteArr(IDUtils.convertHexToBytes(hex));
+	}
+
 	public void writeByteArr(byte[] arr) throws IOException {
 		dout.writeInt(arr.length);
 		dout.write(arr);
@@ -59,6 +65,20 @@ public class MessageMarshaller {
 		writeInt(list.size());
 		for(String str : list) {
 			writeString(str);
+		}
+	}
+
+	public void write1DStringArray(String[] arr) throws IOException {
+		writeInt(arr.length);
+		for(String s : arr) {
+			writeString(s);
+		}
+	}
+
+	public void write1dStringArrList(List<String[]> list) throws IOException {
+		writeInt(list.size());
+		for(String[] arr : list) {
+			write1DStringArray(arr);
 		}
 	}
 
