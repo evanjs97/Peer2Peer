@@ -1,5 +1,7 @@
 package cs555.p2p.messaging;
 
+import cs555.p2p.util.PeerTriplet;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,7 +12,7 @@ public class EntryRequest implements Event{
 	private final int port;
 	private final String host;
 	private final String destinationId;
-	private final List<String[]> tableRows;
+	private final List<PeerTriplet[]> tableRows;
 
 	public int getPort() {
 		return port;
@@ -24,7 +26,7 @@ public class EntryRequest implements Event{
 		return destinationId;
 	}
 
-	public List<String[]> getTableRows() {
+	public List<PeerTriplet[]> getTableRows() {
 		return tableRows;
 	}
 
@@ -35,7 +37,7 @@ public class EntryRequest implements Event{
 		tableRows = new ArrayList<>();
 	}
 
-	public EntryRequest(String host, int port, String destinationId, List<String[]> tableRows) {
+	public EntryRequest(String host, int port, String destinationId, List<PeerTriplet[]> tableRows) {
 		this.host = host;
 		this.port = port;
 		this.destinationId = destinationId;
@@ -52,7 +54,7 @@ public class EntryRequest implements Event{
 			host = messageReader.readString();
 			port = messageReader.readInt();
 			dest = messageReader.readHex();
-			messageReader.read1DStringArrayList(tableRows);
+			messageReader.read1DPeerArrayList(tableRows);
 			messageReader.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -75,7 +77,7 @@ public class EntryRequest implements Event{
 		messageMarshaller.writeInt(getType().getValue());
 		messageMarshaller.writeHex(destinationId);
 		messageMarshaller.writeInt(port);
-		messageMarshaller.write1dStringArrList(tableRows);
+		messageMarshaller.write1dPeerArrList(tableRows);
 		return messageMarshaller.getMarshalledData();
 	}
 }

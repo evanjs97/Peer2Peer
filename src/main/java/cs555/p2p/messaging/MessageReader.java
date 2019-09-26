@@ -1,6 +1,7 @@
 package cs555.p2p.messaging;
 
 import cs555.p2p.util.IDUtils;
+import cs555.p2p.util.PeerTriplet;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -63,19 +64,19 @@ public class MessageReader {
 		}
 	}
 
-	public String[] read1DStringArray() throws IOException {
+	public PeerTriplet[] read1DPeerArray() throws IOException {
 		int arrSize = readInt();
-		String[] arr = new String[arrSize];
+		PeerTriplet[] arr = new PeerTriplet[arrSize];
 		for(int i = 0; i < arr.length; i++) {
-			arr[i] = readString();
+			arr[i] = new PeerTriplet(this);
 		}
 		return arr;
 	}
 
-	public void read1DStringArrayList(List<String[]> list) throws IOException {
+	public void read1DPeerArrayList(List<PeerTriplet[]> list) throws IOException {
 		int arraySize = readInt();
 		for(int i = 0; i < arraySize; i++) {
-			list.add(read1DStringArray());
+			list.add(read1DPeerArray());
 		}
 	}
 

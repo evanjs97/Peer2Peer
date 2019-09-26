@@ -14,7 +14,8 @@ public interface Event {
 		REGISTRATION_REQUEST(1),
 		ID_NOT_AVAILABLE(2),
 		REGISTRATION_SUCCESS(3),
-		ENTRY_REQUEST(4);
+		ENTRY_REQUEST(4),
+		ENTRY_ACCEPTANCE_RESPONSE(5);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

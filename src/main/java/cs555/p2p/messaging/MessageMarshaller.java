@@ -1,6 +1,7 @@
 package cs555.p2p.messaging;
 
 import cs555.p2p.util.IDUtils;
+import cs555.p2p.util.PeerTriplet;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -68,16 +69,16 @@ public class MessageMarshaller {
 		}
 	}
 
-	public void write1DStringArray(String[] arr) throws IOException {
+	public void write1DStringArray(PeerTriplet[] arr) throws IOException {
 		writeInt(arr.length);
-		for(String s : arr) {
-			writeString(s);
+		for(PeerTriplet peer : arr) {
+			peer.writeToStream(this);
 		}
 	}
 
-	public void write1dStringArrList(List<String[]> list) throws IOException {
+	public void write1dPeerArrList(List<PeerTriplet[]> list) throws IOException {
 		writeInt(list.size());
-		for(String[] arr : list) {
+		for(PeerTriplet[] arr : list) {
 			write1DStringArray(arr);
 		}
 	}
