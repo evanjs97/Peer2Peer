@@ -4,6 +4,7 @@ import cs555.p2p.util.PeerTriplet;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.rmi.UnexpectedException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,7 +13,7 @@ public class EntryRequest implements Event{
 	private final int port;
 	private final String host;
 	private final String destinationId;
-	private final List<PeerTriplet[]> tableRows;
+	private final PeerTriplet[][] tableRows;
 
 	public int getPort() {
 		return port;
@@ -26,43 +27,46 @@ public class EntryRequest implements Event{
 		return destinationId;
 	}
 
-	public List<PeerTriplet[]> getTableRows() {
+	public PeerTriplet[][] getTableRows() {
 		return tableRows;
 	}
 
-	public EntryRequest(String host, int port, String destinationId) {
+	public EntryRequest(String host, int port, String destinationId, int numRows) {
 		this.host = host;
 		this.port = port;
 		this.destinationId = destinationId;
-		tableRows = new ArrayList<>();
+		tableRows = new PeerTriplet[numRows][];
 	}
 
-	public EntryRequest(String host, int port, String destinationId, List<PeerTriplet[]> tableRows) {
+	public EntryRequest(String host, int port, String destinationId, PeerTriplet[][] tableRows) {
 		this.host = host;
 		this.port = port;
 		this.destinationId = destinationId;
 		this.tableRows = tableRows;
 	}
 
-	public EntryRequest(DataInputStream din) {
+	public EntryRequest(DataInputStream din) throws UnexpectedException {
 		MessageReader messageReader = new MessageReader(din);
 		String host = "";
 		int port = 0;
 		String dest = "";
-		tableRows = new ArrayList<>();
+		PeerTriplet[][] array = null;
 		try {
 			host = messageReader.readString();
 			port = messageReader.readInt();
 			dest = messageReader.readHex();
-			messageReader.read1DPeerArrayList(tableRows);
+			array = messageReader.read2DPeerArray();
 			messageReader.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+		if(array == null) throw new UnexpectedException("Error: Entry Request contained invalid array: exiting");
+
 		this.host = host;
 		this.port = port;
 		this.destinationId = dest;
-
+		this.tableRows = array;
 	}
 
 	@Override
@@ -77,7 +81,7 @@ public class EntryRequest implements Event{
 		messageMarshaller.writeInt(getType().getValue());
 		messageMarshaller.writeHex(destinationId);
 		messageMarshaller.writeInt(port);
-		messageMarshaller.write1dPeerArrList(tableRows);
+		messageMarshaller.write2DPeerArray(tableRows);
 		return messageMarshaller.getMarshalledData();
 	}
 }

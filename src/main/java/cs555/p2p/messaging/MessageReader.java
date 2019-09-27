@@ -66,6 +66,7 @@ public class MessageReader {
 
 	public PeerTriplet[] read1DPeerArray() throws IOException {
 		int arrSize = readInt();
+		if(readInt() == 0) return null;
 		PeerTriplet[] arr = new PeerTriplet[arrSize];
 		for(int i = 0; i < arr.length; i++) {
 			arr[i] = new PeerTriplet(this);
@@ -78,6 +79,15 @@ public class MessageReader {
 		for(int i = 0; i < arraySize; i++) {
 			list.add(read1DPeerArray());
 		}
+	}
+
+	public PeerTriplet[][] read2DPeerArray() throws IOException {
+		int arraySize = readInt();
+		PeerTriplet[][] array = new PeerTriplet[arraySize][];
+		for(int i = 0; i < arraySize; i++) {
+			array[i] = read1DPeerArray();
+		}
+		return array;
 	}
 
 	public void close() throws IOException {

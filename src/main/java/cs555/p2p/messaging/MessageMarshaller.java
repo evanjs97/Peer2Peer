@@ -69,7 +69,11 @@ public class MessageMarshaller {
 		}
 	}
 
-	public void write1DStringArray(PeerTriplet[] arr) throws IOException {
+	public void write1DPeerArray(PeerTriplet[] arr) throws IOException {
+		if(arr == null) {
+			writeInt(0);
+			return;
+		}
 		writeInt(arr.length);
 		for(PeerTriplet peer : arr) {
 			peer.writeToStream(this);
@@ -79,7 +83,14 @@ public class MessageMarshaller {
 	public void write1dPeerArrList(List<PeerTriplet[]> list) throws IOException {
 		writeInt(list.size());
 		for(PeerTriplet[] arr : list) {
-			write1DStringArray(arr);
+			write1DPeerArray(arr);
+		}
+	}
+
+	public void write2DPeerArray(PeerTriplet[][] array) throws IOException {
+		writeInt(array.length);
+		for(PeerTriplet[] arr : array) {
+			write1DPeerArray(arr);
 		}
 	}
 

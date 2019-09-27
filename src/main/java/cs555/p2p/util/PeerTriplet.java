@@ -10,6 +10,7 @@ public class PeerTriplet {
 	public final String host;
 	public final String identifier;
 
+
 	public PeerTriplet(String host, int port, String identifier) {
 		this.host = host;
 		this.port = port;
@@ -36,5 +37,9 @@ public class PeerTriplet {
 		marshaller.writeInt(port);
 		marshaller.writeString(host);
 		marshaller.writeHex(identifier);
+	}
+
+	public String toString() {
+		return this.host + ":" + this.identifier;
 	}
 }

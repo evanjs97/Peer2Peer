@@ -6,13 +6,13 @@ import java.io.IOException;
 import java.util.List;
 
 public class EntryAcceptanceResponse implements Event{
-	private final List<PeerTriplet[]> tableRows;
-	private final PeerTriplet[] rightLeafset;
+	private final PeerTriplet[][] tableRows;
+	private final PeerTriplet[] rightLeafSet;
 	private final PeerTriplet[] leftLeafSet;
 
-	public EntryAcceptanceResponse(PeerTriplet[] leftLeafSet, PeerTriplet[] rightLeafset, List<PeerTriplet[]> tableRows) {
+	public EntryAcceptanceResponse(PeerTriplet[] leftLeafSet, PeerTriplet[] rightLeafSet, PeerTriplet[][] tableRows) {
 		this.tableRows = tableRows;
-		this.rightLeafset = rightLeafset;
+		this.rightLeafSet = rightLeafSet;
 		this.leftLeafSet = leftLeafSet;
 	}
 	@Override
@@ -22,6 +22,10 @@ public class EntryAcceptanceResponse implements Event{
 
 	@Override
 	public byte[] getBytes() throws IOException {
-		return new byte[0];
+		MessageMarshaller messageMarshaller = new MessageMarshaller();
+		messageMarshaller.write2DPeerArray(tableRows);
+		messageMarshaller.write1DPeerArray(rightLeafSet);
+		messageMarshaller.write1DPeerArray(leftLeafSet);
+		return messageMarshaller.getMarshalledData();
 	}
 }
