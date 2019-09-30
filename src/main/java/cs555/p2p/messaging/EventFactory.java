@@ -1,11 +1,14 @@
 package cs555.p2p.messaging;
 
 import cs555.p2p.messaging.Event.Type;
+import cs555.p2p.node.PeerNode;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Singleton Instance Design Pattern
@@ -13,6 +16,7 @@ import java.io.IOException;
  */
 public class EventFactory {
 	private static EventFactory eventFactory;
+	private final static Logger LOGGER = Logger.getLogger(EventFactory.class.getName());
 	/**
 	 * private constructor can only be called from this class
 	 */
@@ -24,6 +28,7 @@ public class EventFactory {
 	 */
 	static {
 		eventFactory = new EventFactory();
+		LOGGER.setLevel(Level.INFO);
 	}
 
 	public static EventFactory getInstance() {
@@ -56,6 +61,9 @@ public class EventFactory {
 					break;
 				case ENTRY_REQUEST:
 					e = new EntryRequest(din);
+					break;
+				case ENTRY_ACCEPTANCE_RESPONSE:
+					e = new EntryAcceptanceResponse(din);
 					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");

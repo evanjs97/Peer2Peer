@@ -15,12 +15,13 @@ public class IDUtils {
 	 * @return the newly generated id
 	 */
 	public static String generateIDByTimestamp(ID_SIZE size) {
-		long time = Instant.now().getEpochSecond();
-		String hex =  Long.toHexString(time);
-
+//		long time = Instant.now().getEpochSecond();
+//		System.out.println(Instant.now().getNano());
+		String hex =  Integer.toHexString(Instant.now().getNano());
+//		System.out.println(hex);
 		switch (size) {
 			case ID_SHORT:
-				return hex.substring(4);
+				return hex.substring(hex.length()-4);
 			case ID_INT:
 				return hex;
 			default:
@@ -52,6 +53,7 @@ public class IDUtils {
 	 * @return
 	 */
 	public static byte[] convertHexToBytes(String hexString) {
+		System.out.println(hexString);
 		int size = hexString.length();
 		byte[] buf = new byte[size / 2];
 		int j = 0;

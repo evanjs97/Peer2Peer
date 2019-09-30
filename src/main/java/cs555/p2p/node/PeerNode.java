@@ -5,6 +5,7 @@ import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
 import cs555.p2p.util.IDUtils;
 import cs555.p2p.util.PeerTriplet;
+import cs555.p2p.util.Utils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -14,6 +15,7 @@ import java.rmi.UnexpectedException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,24 +32,32 @@ public class PeerNode implements Node{
 	private int port;
 	private String hostname;
 	private String identifier;
+	private String nickname;
+
+	private final static int MAX_THREADS = 100;
+	Semaphore routingTableLock;
 	private final PeerTriplet[][] routingTable;
 	private final PeerTriplet[] rightLeafset;
 	private final PeerTriplet[] leftLeafSet;
 	private final ConcurrentHashMap<String, TCPSender> senders;
 
 	private PeerNode(String discoveryHost, int discoveryPort) {
-		this(discoveryHost, discoveryPort,0);
+		this(discoveryHost, discoveryPort, null, 0, null);
 	}
 
-	private PeerNode(String discoveryHost, int discoveryPort, int port) {
-		this(discoveryHost, discoveryPort, null, port);
+	private PeerNode(String discoveryHost, int discoveryPort, String nickname) {
+		this(discoveryHost, discoveryPort, null, 0, nickname);
 	}
 
-	private PeerNode(String discoveryHost, int discoveryPort, String identifier) {
-		this(discoveryHost, discoveryPort, identifier, 0);
+	private PeerNode(String discoveryHost, int discoveryPort, String identifier, String nickname) {
+		this(discoveryHost, discoveryPort, identifier,0, nickname);
 	}
 
-	private PeerNode(String discoveryHost, int discoveryPort, String identifier, int port) {
+//	private PeerNode(String discoveryHost, int discoveryPort, String identifier, String nickname, int port) {
+//		this(discoveryHost, discoveryPort, identifier,0, nickname);
+//	}
+
+	private PeerNode(String discoveryHost, int discoveryPort, String identifier, int port, String nickname) {
 		this.discoveryHost = discoveryHost;
 		this.discoveryPort = discoveryPort;
 		this.senders = new ConcurrentHashMap<>();
@@ -66,6 +76,8 @@ public class PeerNode implements Node{
 		this.routingTable = new PeerTriplet[IDENTITIFER_BITS/4][16];
 		this.rightLeafset = new PeerTriplet[LEAF_SET_SIZE];
 		this.leftLeafSet = new PeerTriplet[LEAF_SET_SIZE];
+		this.routingTableLock = new Semaphore(MAX_THREADS);
+		this.nickname = nickname == null ? this.hostname : nickname;
 	}
 
 	private void init() {
@@ -74,6 +86,7 @@ public class PeerNode implements Node{
 		Thread serverThread = new Thread(tcpServer);
 		serverThread.start();
 		register();
+		LOGGER.info(String.format("%s: Starting up at address %s:%d with identifier %s", nickname, hostname, port, identifier));
 	}
 
 	private void generateID() {
@@ -97,12 +110,79 @@ public class PeerNode implements Node{
 	 */
 	private void p2pEntry(RegistrationSuccess response) {
 		try {
-			TCPSender sender = new TCPSender(new Socket(response.getEntryHost(), response.getEntryPort()));
-			sender.sendData(new EntryRequest(this.hostname, this.port, identifier, IDENTITIFER_BITS/4).getBytes());
-			sender.close();
+			if(response.getEntryHost().isEmpty() && response.getEntryPort() == 0) {
+				LOGGER.info(String.format("%s successfully entered the network", nickname));
+				PeerTriplet triplet = new PeerTriplet(this.hostname, this.port, this.identifier);
+				rightLeafset[0] = triplet;
+				leftLeafSet[0] = triplet;
+			}else {
+				LOGGER.info(String.format("Sending entry request from %s:%d with id %s", this.hostname, this.port, this.identifier));
+				TCPSender sender = new TCPSender(new Socket(response.getEntryHost(), response.getEntryPort()));
+				sender.sendData(new EntryRequest(this.hostname, this.port, identifier, IDENTITIFER_BITS / 4).getBytes());
+				sender.close();
+			}
 		}catch(IOException ioe) {
 			ioe.printStackTrace();
 		}
+	}
+
+	private void handleEntryAcceptance(EntryAcceptanceResponse response) {
+		LOGGER.info(String.format("%s successfully entered the network", nickname));
+		try {
+			routingTableLock.acquire(100);
+			for(int row = 0; row < response.getTableRows().length; row++) {
+				this.routingTable[row] = response.getTableRows()[row];
+			}
+			routingTableLock.release(100);
+
+			for(int col = 0; col < LEAF_SET_SIZE; col++) {
+				this.leftLeafSet[col] = response.getLeftLeafSet()[col];
+				this.rightLeafset[col] = response.getRightLeafSet()[col];
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		System.out.println(formatRoutingTable());
+		System.out.println(formatLeafSet());
+
+	}
+
+	private String formatLeafSet() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("Left Leaf Set: ");
+		builder.append('[');
+		for(PeerTriplet peer : leftLeafSet) {
+			builder.append(peer.identifier);
+			builder.append(' ');
+		}
+		builder.append("]\n");
+		builder.append('[');
+		for(PeerTriplet peer : rightLeafset) {
+			builder.append(peer.identifier);
+			builder.append(' ');
+		}
+		builder.append("]\n");
+		return builder.toString();
+	}
+
+	private String formatRoutingTable() {
+		StringBuilder builder = new StringBuilder();
+		builder.append(Utils.formatString("",6));
+		for(int i = 0; i < 16; i++) {
+			builder.append(Utils.formatString("Col " + i, 6));
+		}
+		builder.append('\n');
+		for(int row = 0; row < routingTable.length; row++) {
+			builder.append(Utils.formatString("Row " + row, 6));
+			if(routingTable[row] != null) {
+				for (PeerTriplet peer : routingTable[row]) {
+					if (peer != null)
+						builder.append(Utils.formatString(peer.identifier, 6));
+				}
+			}
+			builder.append('\n');
+		}
+		return builder.toString();
 	}
 
 	private void returnToEnteringNode(EntryRequest request) {
@@ -118,8 +198,15 @@ public class PeerNode implements Node{
 
 	private void forwardEntryRequest(EntryRequest request, PeerTriplet dest, int rowIndex) {
 		if(request.getTableRows()[rowIndex] == null) {
-			LOGGER.info("Adding routing table entry for " + dest);
-			request.getTableRows()[rowIndex] = Arrays.copyOf(routingTable[rowIndex], routingTable[rowIndex].length);
+			try {
+
+				routingTableLock.acquire();
+				request.getTableRows()[rowIndex] = Arrays.copyOf(routingTable[rowIndex], routingTable[rowIndex].length);
+				routingTableLock.release();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
 		}
 		try {
 			senders.computeIfAbsent(identifier, id -> {
@@ -143,15 +230,21 @@ public class PeerNode implements Node{
 	 */
 	private void handlePeerEntryRequest(EntryRequest request) throws UnexpectedException {
 		int rowIndex = IDUtils.firstNonMatchingIndex(identifier, request.getDestinationId());
-		if(rowIndex >= routingTable.length)
+		if(rowIndex >= IDENTITIFER_BITS/4)
 			throw new UnexpectedException("ID of target matches current ID: Node ID's must be unique");
 
 
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
 		PeerTriplet rowColEntry = findValidEntry(rowIndex, colIndex);
-		if(rowColEntry == null) returnToEnteringNode(request);
+		if(rowColEntry == null) {
+			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
+			returnToEnteringNode(request);
+		}else {
+			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
+			forwardEntryRequest(request, rowColEntry, rowIndex);
+		}
 
-		forwardEntryRequest(request, rowColEntry, rowIndex);
+
 	}
 
 	/**
@@ -165,7 +258,14 @@ public class PeerNode implements Node{
 	 */
 	private PeerTriplet findValidEntry(int row, int col) {
 		while(col >= 0) {
-			if(routingTable[row][col] != null) return routingTable[row][col];
+			try {
+				routingTableLock.acquire();
+				if(routingTable[row][col] != null) return routingTable[row][col];
+				routingTableLock.release();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
 			col--;
 		}
 		int currentIDAtIndex = Integer.parseInt(identifier.substring(row, row+1), 16);
@@ -181,12 +281,12 @@ public class PeerNode implements Node{
 	 */
 	private PeerTriplet findEntryInTreeSet(int myIDNum, int destIDNum) {
 		if(myIDNum > destIDNum) {
-			for(int i = LEAF_SET_SIZE-1; i >= 0; i++) {
-				if(!rightLeafset[i].equals(identifier)) return rightLeafset[i];
+			for(int i = LEAF_SET_SIZE-1; i >= 0; i--) {
+				if(rightLeafset[i] != null && !rightLeafset[i].identifier.equals(identifier)) return rightLeafset[i];
 			}
 		}
-		for(int i = LEAF_SET_SIZE-1; i >= 0; i++) {
-			if(!leftLeafSet[i].equals(identifier)) return leftLeafSet[i];
+		for(int i = LEAF_SET_SIZE-1; i >= 0; i--) {
+			if(leftLeafSet[i] != null && !leftLeafSet[i].identifier.equals(identifier)) return leftLeafSet[i];
 		}
 		return null;
 	}
@@ -204,10 +304,14 @@ public class PeerNode implements Node{
 				break;
 			case ENTRY_REQUEST:
 				try {
+					LOGGER.info(String.format("Entry request sent from %s", socket.getInetAddress().getCanonicalHostName()));
 					handlePeerEntryRequest((EntryRequest) event);
 				} catch (UnexpectedException e) {
 					e.printStackTrace();
 				}
+				break;
+			case ENTRY_ACCEPTANCE_RESPONSE:
+				this.handleEntryAcceptance((EntryAcceptanceResponse) event);
 				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
@@ -216,7 +320,7 @@ public class PeerNode implements Node{
 	}
 
 	public static void main(String[] args) {
-		LOGGER.setLevel(Level.SEVERE);
+		LOGGER.setLevel(Level.INFO);
 		if(args.length < 2) {
 			LOGGER.severe("Peer Node requires at least 2 arguments []: String:[discoveryServer] int:[port]");
 			System.exit(1);
@@ -227,6 +331,8 @@ public class PeerNode implements Node{
 				PeerNode peerNode;
 				if(args.length > 2) {
 					peerNode = new PeerNode(args[0], discoveryPort, args[2]);
+				}else if(args.length > 3) {
+					peerNode = new PeerNode(args[0], discoveryPort, args[2], args[3]);
 				}else {
 					peerNode = new PeerNode(args[0], discoveryPort);
 				}

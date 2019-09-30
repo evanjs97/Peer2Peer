@@ -76,7 +76,11 @@ public class MessageMarshaller {
 		}
 		writeInt(arr.length);
 		for(PeerTriplet peer : arr) {
-			peer.writeToStream(this);
+			if(peer == null) writeBoolean(false);
+			else {
+				writeBoolean(true);
+				peer.writeToStream(this);
+			}
 		}
 	}
 

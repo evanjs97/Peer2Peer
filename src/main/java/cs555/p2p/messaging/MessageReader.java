@@ -66,10 +66,11 @@ public class MessageReader {
 
 	public PeerTriplet[] read1DPeerArray() throws IOException {
 		int arrSize = readInt();
-		if(readInt() == 0) return null;
+		if(arrSize == 0) return null;
 		PeerTriplet[] arr = new PeerTriplet[arrSize];
 		for(int i = 0; i < arr.length; i++) {
-			arr[i] = new PeerTriplet(this);
+			boolean exists = readBoolean();
+			if(exists) arr[i] = new PeerTriplet(this);
 		}
 		return arr;
 	}

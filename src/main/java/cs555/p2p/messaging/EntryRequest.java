@@ -53,8 +53,10 @@ public class EntryRequest implements Event{
 		PeerTriplet[][] array = null;
 		try {
 			host = messageReader.readString();
+
 			port = messageReader.readInt();
 			dest = messageReader.readHex();
+			System.out.println("READING: " + host + ":" + port + " DEST: " + dest);
 			array = messageReader.read2DPeerArray();
 			messageReader.close();
 		} catch (IOException e) {
@@ -77,10 +79,11 @@ public class EntryRequest implements Event{
 	@Override
 	public byte[] getBytes() throws IOException {
 		MessageMarshaller messageMarshaller = new MessageMarshaller();
-		messageMarshaller.writeString(host);
+		System.out.println("WRITING: " + host +":" +port + " DEST: " + destinationId);
 		messageMarshaller.writeInt(getType().getValue());
-		messageMarshaller.writeHex(destinationId);
+		messageMarshaller.writeString(host);
 		messageMarshaller.writeInt(port);
+		messageMarshaller.writeHex(destinationId);
 		messageMarshaller.write2DPeerArray(tableRows);
 		return messageMarshaller.getMarshalledData();
 	}
