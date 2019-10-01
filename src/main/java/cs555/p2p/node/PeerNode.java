@@ -152,14 +152,18 @@ public class PeerNode implements Node{
 		builder.append("Left Leaf Set: ");
 		builder.append('[');
 		for(PeerTriplet peer : leftLeafSet) {
-			builder.append(peer.identifier);
-			builder.append(' ');
+			if(peer != null) {
+				builder.append(peer.identifier);
+				builder.append(' ');
+			}
 		}
 		builder.append("]\n");
 		builder.append('[');
 		for(PeerTriplet peer : rightLeafset) {
-			builder.append(peer.identifier);
-			builder.append(' ');
+			if(peer != null) {
+				builder.append(peer.identifier);
+				builder.append(' ');
+			}
 		}
 		builder.append("]\n");
 		return builder.toString();
@@ -172,16 +176,23 @@ public class PeerNode implements Node{
 			builder.append(Utils.formatString("Col " + i, 6));
 		}
 		builder.append('\n');
-		for(int row = 0; row < routingTable.length; row++) {
-			builder.append(Utils.formatString("Row " + row, 6));
-			if(routingTable[row] != null) {
-				for (PeerTriplet peer : routingTable[row]) {
-					if (peer != null)
-						builder.append(Utils.formatString(peer.identifier, 6));
+		try {
+			routingTableLock.acquire(1);
+			for(int row = 0; row < routingTable.length; row++) {
+				builder.append(Utils.formatString("Row " + row, 6));
+				if(routingTable[row] != null) {
+					for (PeerTriplet peer : routingTable[row]) {
+						if (peer != null)
+							builder.append(Utils.formatString(peer.identifier, 6));
+					}
 				}
+				builder.append('\n');
 			}
-			builder.append('\n');
+			routingTableLock.release(1);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+
 		return builder.toString();
 	}
 
@@ -197,12 +208,12 @@ public class PeerNode implements Node{
 	}
 
 	private void forwardEntryRequest(EntryRequest request, PeerTriplet dest, int rowIndex) {
-		if(request.getTableRows()[rowIndex] == null) {
+		if(request.getTableRows()[rowIndex] == null && routingTable[rowIndex] != null) {
 			try {
 
-				routingTableLock.acquire();
+				routingTableLock.acquire(1);
 				request.getTableRows()[rowIndex] = Arrays.copyOf(routingTable[rowIndex], routingTable[rowIndex].length);
-				routingTableLock.release();
+				routingTableLock.release(1);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -236,11 +247,11 @@ public class PeerNode implements Node{
 
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
 		PeerTriplet rowColEntry = findValidEntry(rowIndex, colIndex);
-		if(rowColEntry == null) {
+		if(rowColEntry == null || rowColEntry.identifier.equals(request.getDestinationId())) {
 			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
 			returnToEnteringNode(request);
 		}else {
-			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
+			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", rowColEntry.host, rowColEntry.port, rowColEntry.identifier));
 			forwardEntryRequest(request, rowColEntry, rowIndex);
 		}
 
@@ -260,7 +271,9 @@ public class PeerNode implements Node{
 		while(col >= 0) {
 			try {
 				routingTableLock.acquire();
-				if(routingTable[row][col] != null) return routingTable[row][col];
+				if(routingTable[row] != null && routingTable[row][col] != null) {
+					return routingTable[row][col];
+				}
 				routingTableLock.release();
 			} catch (InterruptedException e) {
 				e.printStackTrace();

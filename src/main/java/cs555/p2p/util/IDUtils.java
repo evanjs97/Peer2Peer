@@ -53,7 +53,6 @@ public class IDUtils {
 	 * @return
 	 */
 	public static byte[] convertHexToBytes(String hexString) {
-		System.out.println(hexString);
 		int size = hexString.length();
 		byte[] buf = new byte[size / 2];
 		int j = 0;
