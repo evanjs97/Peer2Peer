@@ -1,5 +1,10 @@
 package cs555.p2p.util;
 
+import java.math.BigInteger;
+import java.rmi.UnexpectedException;
+import java.security.DigestException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 
 public class IDUtils {
@@ -15,10 +20,16 @@ public class IDUtils {
 	 * @return the newly generated id
 	 */
 	public static String generateIDByTimestamp(ID_SIZE size) {
-//		long time = Instant.now().getEpochSecond();
-//		System.out.println(Instant.now().getNano());
-		String hex =  Integer.toHexString(Instant.now().getNano());
-//		System.out.println(hex);
+		String str =  ""+Instant.now().getNano();
+		String hex = null;
+		try {
+			hex = SHAChecksum(str.getBytes());
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (DigestException e) {
+			e.printStackTrace();
+		}
+		if(hex == null) return "";
 		switch (size) {
 			case ID_SHORT:
 				return hex.substring(hex.length()-4);
@@ -27,6 +38,69 @@ public class IDUtils {
 			default:
 				return hex;
 		}
+	}
+
+	public static String SHAChecksum(byte[] bytes) throws NoSuchAlgorithmException, DigestException {
+		MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+		return hashToHexString(messageDigest.digest(bytes));
+	}
+
+	public static String hashToHexString(byte[] hash) {
+		BigInteger hashNumber = new BigInteger(1, hash);
+
+		StringBuilder builder = new StringBuilder(hashNumber.toString(16));
+
+		while (builder.length() < 40) {
+			builder.insert(0, '0');
+		}
+
+		return builder.toString();
+	}
+
+	public static boolean hostIsCloser(String id1, String id2, String destID)  {
+//		System.out.println("COMPARING HOSTS: " + id1 + "\t" + id2 + "\t" + destID);
+		int c12 = id1.compareTo(id2);
+		int dest1 = destID.compareTo(id1);
+		int dest2 = destID.compareTo(id2);
+		//id1 is before 2 and dest is greater than 1
+//		System.out.println("COMPARISONS: " + c12 + "\t" + dest1 + "\t" + dest2);
+		if((c12 > 0 && (dest1 >= 0 || dest2 < 0)) || (c12 < 0 && dest2 < 0)) return true;
+		else return false;
+//		throw new UnexpectedException("Error Host IDs are matching");
+	}
+
+	public enum ID_COMPARE{
+		LEFT,
+		RIGHT,
+		FIRST,
+		LAST;
+	}
+	public static int compareIDS(String id1, String id2, ID_COMPARE comparison) {
+		if(comparison == ID_COMPARE.FIRST) return id1.compareTo(id2);
+		else return id2.compareTo(id1);
+	}
+
+	public static boolean betterLeftChild(String currentLeft, String newLeft, String nodeID) {
+		int currNew = currentLeft.compareTo(newLeft);
+		int newID = newLeft.compareTo(nodeID);
+		int currID = currentLeft.compareTo(nodeID);
+		System.out.println("COMPARING LEFT: " + currentLeft + "\t" + newLeft + "\t" + nodeID + "\t" + currNew + "\t" + newID + "\t" + currID);
+		if((currNew > 0 && newID > 0) || (currNew < 0 && currID < 0 && newID > 0)) return true;
+		return false;
+	}
+
+	public static boolean betterRightChild(String currentRight, String newRight, String nodeID) {
+		int currNew = currentRight.compareTo( newRight);
+		int newID = newRight.compareTo(nodeID);
+		int currID = currentRight.compareTo(nodeID);
+		System.out.println("COMPARING RIGHT: " + currentRight + "\t" + newRight + "\t" + nodeID + "\t" + currNew + "\t" + newID + "\t" + currID);
+		if((currNew < 0 && newID < 0) || (currNew > 0 && currID > 0 && newID < 0) || (currNew < 0 && currID > 0)) return true;
+		return false;
+	}
+
+	public static boolean betterChild(String current, String newID, String nodeID, ID_COMPARE comparison) {
+		if(comparison == ID_COMPARE.LEFT) return betterLeftChild(current, newID, nodeID);
+		else return betterRightChild(current, newID, nodeID);
 	}
 
 	/**

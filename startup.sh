@@ -12,7 +12,7 @@ gnome-terminal --geometry=132x43 -e "ssh -t ${DISCOVERY} 'cd ${HOME}/build/class
 
 
 SCRIPT="cd ${HOME}/build/classes/java/main; java cs555.p2p.node.PeerNode ${DISCOVERY} ${PORT}"
-COMMAND="gnome-terminal"
+COMMAND="gnome-terminal --geometry=150x50"
 
 sleep 3
 mapfile -t NICKNAMES < nicknames;

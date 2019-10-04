@@ -14,6 +14,7 @@ public class EntryRequest implements Event{
 	private final String host;
 	private final String destinationId;
 	private final PeerTriplet[][] tableRows;
+	private int forwardPort;
 
 	public int getPort() {
 		return port;
@@ -31,18 +32,28 @@ public class EntryRequest implements Event{
 		return tableRows;
 	}
 
-	public EntryRequest(String host, int port, String destinationId, int numRows) {
+	public int getForwardPort() {
+		return forwardPort;
+	}
+
+	public void setForwardPort(int forwardPort) {
+		this.forwardPort = forwardPort;
+	}
+
+	public EntryRequest(String host, int port, String destinationId, int numRows, int forwardPort) {
 		this.host = host;
 		this.port = port;
 		this.destinationId = destinationId;
 		tableRows = new PeerTriplet[numRows][];
+		this.forwardPort = forwardPort;
 	}
 
-	public EntryRequest(String host, int port, String destinationId, PeerTriplet[][] tableRows) {
+	public EntryRequest(String host, int port, String destinationId, PeerTriplet[][] tableRows, int forwardPort) {
 		this.host = host;
 		this.port = port;
 		this.destinationId = destinationId;
 		this.tableRows = tableRows;
+		this.forwardPort = forwardPort;
 	}
 
 	public EntryRequest(DataInputStream din) throws UnexpectedException {
@@ -51,6 +62,7 @@ public class EntryRequest implements Event{
 		int port = 0;
 		String dest = "";
 		PeerTriplet[][] array = null;
+		int forwardPort = 0;
 		try {
 			host = messageReader.readString();
 
@@ -58,6 +70,7 @@ public class EntryRequest implements Event{
 			dest = messageReader.readHex();
 			System.out.println("READING: " + host + ":" + port + " DEST: " + dest);
 			array = messageReader.read2DPeerArray();
+			forwardPort = messageReader.readInt();
 			messageReader.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -69,6 +82,7 @@ public class EntryRequest implements Event{
 		this.port = port;
 		this.destinationId = dest;
 		this.tableRows = array;
+		this.forwardPort = forwardPort;
 	}
 
 	@Override
@@ -85,6 +99,7 @@ public class EntryRequest implements Event{
 		messageMarshaller.writeInt(port);
 		messageMarshaller.writeHex(destinationId);
 		messageMarshaller.write2DPeerArray(tableRows);
+		messageMarshaller.writeInt(forwardPort);
 		return messageMarshaller.getMarshalledData();
 	}
 }

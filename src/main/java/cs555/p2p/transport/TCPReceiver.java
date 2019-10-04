@@ -51,10 +51,5 @@ public class TCPReceiver implements Runnable {
 				ne.printStackTrace();
 			}
 		}
-		try {
-			socket.close();
-		}catch(IOException ioe) {
-			ioe.printStackTrace();
-		}
 	}
 }

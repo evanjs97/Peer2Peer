@@ -61,9 +61,13 @@ public class EventFactory {
 					break;
 				case ENTRY_REQUEST:
 					e = new EntryRequest(din);
+					LOGGER.info("Read entry request from socket: "  + ((EntryRequest)e).getHost());
 					break;
 				case ENTRY_ACCEPTANCE_RESPONSE:
 					e = new EntryAcceptanceResponse(din);
+					break;
+				case ENTRANCE_BROADCAST:
+					e = new EntranceBroadcast(din);
 					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");
