@@ -32,6 +32,10 @@ public class EntryRequest implements Event{
 		return tableRows;
 	}
 
+	public void setTableRow(int row, PeerTriplet[] arr) {
+		tableRows[row] = arr;
+	}
+
 	public int getForwardPort() {
 		return forwardPort;
 	}
