@@ -1,9 +1,6 @@
 package cs555.p2p.node;
 
-import cs555.p2p.messaging.Event;
-import cs555.p2p.messaging.RegisterRequest;
-import cs555.p2p.messaging.RegistrationFailure;
-import cs555.p2p.messaging.RegistrationSuccess;
+import cs555.p2p.messaging.*;
 import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
 
@@ -106,12 +103,27 @@ public class DiscoveryNode implements Node{
 		return nodeIDMappings.get(key);
 	}
 
+	private void removePeer(ExitRequest request, Socket socket) {
+		HostPort success = nodeIDMappings.remove(request.getIdentifier());
+		if(success != null) {
+			try {
+				TCPSender sender = new TCPSender(new Socket(socket.getInetAddress().getCanonicalHostName(), request.getPort()));
+				sender.sendData(new ExitSuccessResponse().getBytes());
+				sender.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	@Override
 	public void onEvent(Event event, Socket socket) {
 		switch (event.getType()) {
 			case REGISTRATION_REQUEST:
 				registerPeer((RegisterRequest) event, socket);
 				break;
+			case EXIT_REQUEST:
+				removePeer((ExitRequest) event, socket);
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;

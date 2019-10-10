@@ -21,11 +21,13 @@ nickname=0;
 for i in `cat machine_list`; do
 	for j in `seq 1 ${CHUNK_SERVERS_PER_MACHINE}`; do
       		echo 'logging into '${i}
-      		CURRENT="sleep ${nickname}; ${SCRIPT} ${NICKNAMES[${nickname}]};"
-       		OPTIONS='--tab -e "ssh -t '$i' '$CURRENT'"'
+      		NAME=${NICKNAMES[${nickname}]}
+      		NAME="${NAME// /_}"
+      		CURRENT="sleep ${nickname}; ${SCRIPT}"
+       		OPTIONS='--tab -e "ssh -t '$i' '$CURRENT' '$NAME';"'
         	COMMAND+=" $OPTIONS"
         	let "nickname++"
-        	let "nickname++"
+
     done
 done
 

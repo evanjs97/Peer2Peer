@@ -119,9 +119,11 @@ public class NodeRouting {
 
 	public void printRoutingTable() {
 		try {
+
 			routingTableLock.acquire(1);
 			LOGGER.info(Logging.formatRoutingTable(routingTable));
 			routingTableLock.release(1);
+
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -138,29 +140,43 @@ public class NodeRouting {
 	}
 
 	private PeerTriplet checkLeftRoutingTable(int row, int col, int minDistance, String destID) {
-		for(int i = col; i > 0; i--) {
-			if (routingTable[row][i] == null) {
-				continue;
+		try {
+			routingTableLock.acquire(1);
+			for(int i = col; i > 0; i--) {
+				if (routingTable[row][i] == null) {
+					continue;
+				}
+				int rightDistance = IDUtils.rightDistance(destID, routingTable[row][i].identifier);
+				if (rightDistance < minDistance) {
+					routingTableLock.release(1);
+					return routingTable[row][i];
+				}
 			}
-			int rightDistance = IDUtils.rightDistance(destID, routingTable[row][i].identifier);
-			if (rightDistance < minDistance) {
-				return routingTable[row][i];
-			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+		routingTableLock.release(1);
 		return null;
 	}
 
 	private PeerTriplet checkRightRoutingTable(int row, int col, int minDistance, String destID) {
-		if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
-		for(int i = col; i < routingTable[row].length; i++) {
-			if (routingTable[row][i] == null) {
-				continue;
+		try {
+			routingTableLock.acquire(1);
+			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
+			for(int i = col; i < routingTable[row].length; i++) {
+				if (routingTable[row][i] == null) {
+					continue;
+				}
+				int leftDistance = IDUtils.leftDistance(destID, routingTable[row][i].identifier);
+				if (leftDistance < minDistance) {
+					routingTableLock.release(1);
+					return routingTable[row][i];
+				}
 			}
-			int leftDistance = IDUtils.leftDistance(destID, routingTable[row][i].identifier);
-			if (leftDistance < minDistance) {
-				return routingTable[row][i];
-			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+		routingTableLock.release(1);
 		return null;
 	}
 
@@ -175,14 +191,15 @@ public class NodeRouting {
 				else distance = IDUtils.leftDistance(leafSet[i].identifier, destID);
 				if(minDistance > distance) {
 //					System.out.println(leafSet[i].identifier);
+					leafSetLock.release(1);
 					return leafSet[i];
 				}
 			}
-			leafSetLock.release(1);
+
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
+		leafSetLock.release(1);
 		return null;
 	}
 
@@ -207,19 +224,23 @@ public class NodeRouting {
 
 	public boolean addToLeafSet(PeerTriplet peer) {
 		try {
-			int newRightDistance = IDUtils.rightDistance(identifier, peer.identifier);
-			int newLeftDistance = IDUtils.leftDistance(identifier, peer.identifier);
+			int newRightDistance = IDUtils.rightDistance(identifier, peer.identifier); //6F53-2716
+			int newLeftDistance = IDUtils.leftDistance(identifier, peer.identifier); //FFFF-6F53+2716
 			boolean found = false;
 			leafSetLock.acquire(MAX_THREADS);
 
 			for (int i = 0; i < LEAF_SET_SIZE; i++) {
+				int rightDistance = Integer.MAX_VALUE;
+				if(rightLeafset[i] != null) rightDistance = IDUtils.rightDistance(identifier, rightLeafset[i].identifier);
 				if(rightLeafset[i] == null || rightLeafset[i].identifier.equals(identifier) ||
-						(newRightDistance < IDUtils.rightDistance(identifier, rightLeafset[i].identifier) && !found)) {
+						(newRightDistance < rightDistance && !found)) {
 					rightLeafset[i] = peer;
 					found = true;
 				}
+				int leftDistance = Integer.MAX_VALUE;
+				if(leftLeafSet[i] != null) leftDistance = IDUtils.leftDistance(identifier, leftLeafSet[i].identifier);
 				if(leftLeafSet[i] == null || leftLeafSet[i].identifier.equals(identifier) ||
-						(newLeftDistance < IDUtils.leftDistance(identifier, leftLeafSet[i].identifier) && !found)) {
+						(newLeftDistance < leftDistance && !found)) {
 					leftLeafSet[i] = peer;
 					found = true;
 				}

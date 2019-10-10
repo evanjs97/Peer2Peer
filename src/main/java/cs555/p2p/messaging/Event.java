@@ -17,7 +17,9 @@ public interface Event {
 		ENTRY_REQUEST(4),
 		ENTRY_ACCEPTANCE_RESPONSE(5),
 		ENTRANCE_BROADCAST(6),
-		TRAVERSE_REQUEST(7);
+		TRAVERSE_REQUEST(7),
+		EXIT_REQUEST(8),
+		EXIT_SUCCESS_RESPONSE(9);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

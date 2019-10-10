@@ -71,6 +71,9 @@ public class EventFactory {
 				case TRAVERSE_REQUEST:
 					e = new TraverseRequest(din);
 					break;
+				case EXIT_REQUEST:
+					e = new ExitRequest(din);
+					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");
 					break;

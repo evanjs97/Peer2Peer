@@ -83,6 +83,7 @@ public class PeerNode implements Node{
 
 	private void register() {
 		if(identifier == null) generateID();
+		System.out.println(identifier);
 		try {
 			TCPSender sender = new TCPSender(new Socket(this.discoveryHost, this.discoveryPort));
 			sender.sendData(new RegisterRequest(identifier, port).getBytes());
@@ -128,14 +129,7 @@ public class PeerNode implements Node{
 			}
 		}
 		routing.releaseTable();
-		routing.aquireLeafSet();
-		for(PeerTriplet neighbor : routing.getRightLeafset()) {
-			if(neighbor != null && !neighbor.identifier.equals(identifier)) sendEvent(neighbor.identifier, neighbor.host, neighbor.port, broadcast);
-		}
-		for(PeerTriplet neighbor : routing.getLeftLeafSet()) {
-			if(neighbor != null && !neighbor.identifier.equals(identifier)) sendEvent(neighbor.identifier, neighbor.host, neighbor.port, broadcast);
-		}
-		routing.releaseLeafSet();
+		sendMessageToLeafNodes(broadcast);
 	}
 
 	private void handleEntranceBroadCast(EntranceBroadcast broadcast) {
@@ -266,32 +260,84 @@ public class PeerNode implements Node{
 			case TRAVERSE_REQUEST:
 				handleTraversal((TraverseRequest) event);
 				break;
+			case EXIT_REQUEST:
+				handleExitRequest((ExitRequest) event);
+				break;
+			case EXIT_SUCCESS_RESPONSE:
+				exitGracefully();
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;
 		}
 	}
 
-	public void handleTraversal(TraverseRequest request) {
+	private void handleExitRequest(ExitRequest request) {
+		routing.aquireLeafSet();
+		LOGGER.info("EXIT REQUEST: LEFT: " + request.getNewLeft() + " RIGHT: " + request.getNewRight());
+		if(request.getNewRight() != null) routing.getRightLeafset()[request.getRightIndex()] = request.getNewRight();
+		if(request.getNewLeft() != null) routing.getLeftLeafSet()[request.getLeftIndex()] = request.getNewLeft();
+		routing.releaseLeafSet();
+	}
+
+	private void handleTraversal(TraverseRequest request) {
 		request.addPeer(identifier);
 		if(request.getPeers().get(0).equals(identifier)) {
 			LOGGER.info("\nTraverse Route: "+String.join(" ---> ", request.getPeers()));
 		}else sendTraversal(request);
 	}
 
-	public void sendTraversal(TraverseRequest request) {
+	private void sendTraversal(TraverseRequest request) {
 		routing.aquireLeafSet();
 		PeerTriplet left = routing.getLeftNeighbor();
 		sendEvent(left.identifier, left.host, left.port, request);
 		routing.releaseLeafSet();
 	}
 
-	public void traverseNetwork() {
+	private void traverseNetwork() {
 		TraverseRequest request = new TraverseRequest(identifier);
 		sendTraversal(request);
 	}
 
-	public void inputHandler() {
+	private void sendMessageToLeafNodes(Event event) {
+		routing.aquireLeafSet();
+		for(PeerTriplet peer : routing.getLeftLeafSet()) {
+			sendEvent(peer.identifier, peer.host, peer.port, event);
+		}
+		for(PeerTriplet peer : routing.getRightLeafset()) {
+			sendEvent(peer.identifier, peer.host, peer.port, event);
+		}
+		routing.releaseLeafSet();
+	}
+
+	private void exitGracefully() {
+		routing.aquireLeafSet();
+		for(int i = 0; i < LEAF_SET_SIZE; i++) {
+			PeerTriplet left = routing.getLeftLeafSet()[i];
+			PeerTriplet right = routing.getRightLeafset()[i];
+
+			ExitRequest leftExit = new ExitRequest(identifier, null, right, 0, i, port);
+			sendEvent(left.identifier, left.host, left.port, leftExit);
+
+			ExitRequest rightExit = new ExitRequest(identifier, left, null, i, 0, port);
+			sendEvent(right.identifier, right.host, right.port, rightExit);
+		}
+		routing.releaseLeafSet();
+	}
+
+	private void exitNetwork() {
+		try {
+			TCPSender sender = new TCPSender(new Socket(discoveryHost, discoveryPort));
+			ExitRequest exitRequest = new ExitRequest(identifier, null, null, 0, 0, port);
+			sender.sendData(exitRequest.getBytes());
+			sender.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void inputHandler() {
 		Scanner scan = new Scanner(System.in);
 		while(true) {
 			while (scan.hasNextLine()) {
@@ -322,7 +368,9 @@ public class PeerNode implements Node{
 						}
 						break;
 					case "exit":
-
+						exitNetwork();
+						LOGGER.info(String.format("%s exited the network", nickname));
+						System.exit(0);
 				}
 			}
 		}
@@ -335,12 +383,13 @@ public class PeerNode implements Node{
 			System.exit(1);
 		}else {
 			try {
+				LOGGER.info(Arrays.toString(args));
 				int discoveryPort = Integer.parseInt(args[1]);
 				if(discoveryPort > 65535 || discoveryPort < 1024) throw new NumberFormatException();
 				PeerNode peerNode;
-				if(args.length > 2) {
+				if(args.length == 3) {
 					peerNode = new PeerNode(args[0], discoveryPort, args[2]);
-				}else if(args.length > 3) {
+				}else if(args.length == 4) {
 					peerNode = new PeerNode(args[0], discoveryPort, args[2], args[3]);
 				}else {
 					peerNode = new PeerNode(args[0], discoveryPort);
@@ -348,8 +397,14 @@ public class PeerNode implements Node{
 				peerNode.init();
 				peerNode.inputHandler();
 			}catch(NumberFormatException nfe) {
+				nfe.printStackTrace();
 				LOGGER.severe("Discovery Node requires a valid integer port: 1024 < [port] < 65536");
-				System.exit(1);
+//				System.exit(1);
+			}
+			try {
+				Thread.sleep(10000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 	}

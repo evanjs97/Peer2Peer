@@ -65,14 +65,14 @@ public class IDUtils {
 		int currentIDValue = Integer.parseInt(currentID, 16);
 		int destIDValue = Integer.parseInt(destID, 16);
 		if(destID.compareTo(currentID) >= 0) return destIDValue - currentIDValue;
-		else return MAX_NODE_VALUE - currentIDValue + destIDValue;
+		else return (MAX_NODE_VALUE - currentIDValue) + destIDValue;
 	}
 
 	public static int rightDistance(String currentID, String destID) {
 		int currentIDValue = Integer.parseInt(currentID, 16);
 		int destIDValue = Integer.parseInt(destID, 16);
 		if(destID.compareTo(currentID) <= 0) return currentIDValue - destIDValue;
-		else return currentIDValue + MAX_NODE_VALUE - destIDValue;
+		else return currentIDValue + (MAX_NODE_VALUE - destIDValue); //65F3+FFFF-FEEB=65F3+0114
 	}
 
 //	public static boolean hostIsCloser(String id1, String id2, String destID)  {
