@@ -69,6 +69,13 @@ public class MessageMarshaller {
 		}
 	}
 
+	public void writePeerList(List<PeerTriplet> peers) throws IOException {
+		dout.writeInt(peers.size());
+		for(PeerTriplet peer : peers) {
+			peer.writeToStream(this);
+		}
+	}
+
 	public void write1DPeerArray(PeerTriplet[] arr) throws IOException {
 		if(arr == null) {
 			writeInt(0);

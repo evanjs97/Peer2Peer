@@ -64,6 +64,12 @@ public class MessageReader {
 		}
 	}
 
+	public void readPeerList(List<PeerTriplet> peers) throws IOException{
+		for(int i = 0; i < din.readInt(); i++) {
+			peers.add(new PeerTriplet(this));
+		}
+	}
+
 	public PeerTriplet[] read1DPeerArray() throws IOException {
 		int arrSize = readInt();
 		if(arrSize == 0) return null;

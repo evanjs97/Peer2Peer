@@ -16,7 +16,8 @@ public interface Event {
 		REGISTRATION_SUCCESS(3),
 		ENTRY_REQUEST(4),
 		ENTRY_ACCEPTANCE_RESPONSE(5),
-		ENTRANCE_BROADCAST(6);
+		ENTRANCE_BROADCAST(6),
+		TRAVERSE_REQUEST(7);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

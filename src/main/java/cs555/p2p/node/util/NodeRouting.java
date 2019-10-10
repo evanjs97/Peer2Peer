@@ -34,6 +34,14 @@ public class NodeRouting {
 		return leftLeafSet;
 	}
 
+	public PeerTriplet getLeftNeighbor() {
+		return leftLeafSet[0];
+	}
+
+	public PeerTriplet getRightNeighbor() {
+		return rightLeafset[0];
+	}
+
 	public NodeRouting(int tableRows, int tableCols, String identifier) {
 		this(new PeerTriplet[tableRows][tableCols], new PeerTriplet[LEAF_SET_SIZE], new PeerTriplet[LEAF_SET_SIZE], identifier);
 	}
@@ -129,114 +137,81 @@ public class NodeRouting {
 		}
 	}
 
-	private PeerTriplet checkUpperTable(int startRow, int startCol, String destID) {
-		int minDistance = IDUtils.rightDistance(destID, identifier);
-		PeerTriplet minPeer = null;
-		while(startRow >= 0) {
-			if(routingTable[startRow] == null) {
-				routingTable[startRow] = new PeerTriplet[16];
+	private PeerTriplet checkLeftRoutingTable(int row, int col, int minDistance, String destID) {
+		for(int i = col; i > 0; i--) {
+			if (routingTable[row][i] == null) {
+				continue;
 			}
-			for(int i = startCol; i >= 0; i--) {
-				if(routingTable[startRow][i] == null) {
-					continue;
-				}
-				int rightDistance = IDUtils.rightDistance(destID, routingTable[startRow][i].identifier);
-				if(rightDistance < minDistance) {
-					minDistance = rightDistance;
-					minPeer = routingTable[startRow][i];
-					if(minPeer.identifier.compareTo(destID) < 0) return minPeer;
-				}
-			}
-			startRow--;
-			startCol = 15;
-		}
-		return minPeer;
-	}
-
-	private PeerTriplet checkLowerTable(int startRow, int startCol, String destID) {
-		int minDistance = IDUtils.rightDistance(destID, identifier);
-		PeerTriplet minPeer = null;
-		while(startRow < routingTable.length) {
-			if(routingTable[startRow] == null) {
-				routingTable[startRow] = new PeerTriplet[16];
-			}
-			for(int i = startCol; i < routingTable[startRow].length; i++) {
-				if(routingTable[startRow][i] == null) {
-					continue;
-				}
-				int rightDistance = IDUtils.rightDistance(destID, routingTable[startRow][i].identifier);
-				if(rightDistance < minDistance) {
-					minDistance = rightDistance;
-					minPeer = routingTable[startRow][i];
-				}
-			}
-			startRow++;
-			startCol = 0;
-		}
-		return minPeer;
-	}
-
-	private PeerTriplet findPeerInLeafSet(PeerTriplet[] leafSet, String destID) {
-		int minDistance = IDUtils.rightDistance(destID, identifier);
-		for(int i = LEAF_SET_SIZE-1; i >= 0; i--) {
-			if(leafSet[i].identifier.equals(identifier)) continue;
-			if(minDistance > IDUtils.rightDistance(destID, leafSet[i].identifier) && leafSet[i].identifier.compareTo(destID) <= 0) {
-				System.out.println(leafSet[i].identifier);
-				return leafSet[i];
+			int rightDistance = IDUtils.rightDistance(destID, routingTable[row][i].identifier);
+			if (rightDistance < minDistance) {
+				return routingTable[row][i];
 			}
 		}
 		return null;
 	}
 
-	private PeerTriplet checkLeafSet(String destID) {
-		PeerTriplet peer = null;
+	private PeerTriplet checkRightRoutingTable(int row, int col, int minDistance, String destID) {
+		if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
+		for(int i = col; i < routingTable[row].length; i++) {
+			if (routingTable[row][i] == null) {
+				continue;
+			}
+			int leftDistance = IDUtils.leftDistance(destID, routingTable[row][i].identifier);
+			if (leftDistance < minDistance) {
+				return routingTable[row][i];
+			}
+		}
+		return null;
+	}
+
+	private PeerTriplet findPeerInLeafSet(PeerTriplet[] leafSet, String destID, int minDistance, boolean left) {
+//		int minDistance = IDUtils.rightDistance(destID, identifier);
 		try {
 			leafSetLock.acquire(1);
-			if(destID.compareTo(identifier) > 0) {
-				peer = findPeerInLeafSet(leftLeafSet, destID);
-			}else {
-				peer =  findPeerInLeafSet(rightLeafset, destID);
+			for(int i = LEAF_SET_SIZE-1; i >= 0; i--) {
+				if(leafSet[i].identifier.equals(identifier)) continue;
+				int distance;
+				if(!left) distance = IDUtils.rightDistance(leafSet[i].identifier, destID);
+				else distance = IDUtils.leftDistance(leafSet[i].identifier, destID);
+				if(minDistance > distance) {
+//					System.out.println(leafSet[i].identifier);
+					return leafSet[i];
+				}
 			}
 			leafSetLock.release(1);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		return peer;
+
+		return null;
 	}
 
-	public PeerTriplet findRoutingDest(int startRow, int startCol, String originHost, int originPort, String destID) {
-		PeerTriplet right = checkUpperTable(startRow, startCol, destID);
-		PeerTriplet left = checkLowerTable(startRow, startCol, destID);
-		PeerTriplet leaf = checkLeafSet(destID);
+	public PeerTriplet findRoutingDest(int startRow, int startCol, String destID) {
+		int currentRightDist = IDUtils.rightDistance(identifier, destID);
+		int currentLeftDist = IDUtils.leftDistance(identifier, destID);
+		PeerTriplet peer;
+		if(currentLeftDist <= currentRightDist) peer = findPeerInLeafSet(leftLeafSet, destID, currentLeftDist, true);
+		else peer = findPeerInLeafSet(rightLeafset, destID, currentRightDist, false);
 
-		if(left == null && right == null) {
-			return leaf;
-		}
-		if(right == null) {
-			return left;
-		}
-		if(left == null) {
-			return right;
-		}
+		if(peer == null) return null;
 
-		int rightDist = IDUtils.rightDistance(destID, right.identifier);
-		int leftDist = IDUtils.rightDistance(destID, left.identifier);
-		int leafDist = IDUtils.rightDistance(destID, leaf.identifier);
-
-		if(rightDist < leftDist) {
-			return rightDist < leafDist ? right : leaf;
+		PeerTriplet dest;
+		if(currentLeftDist <= currentRightDist) {
+			 dest = checkLeftRoutingTable(startRow, startCol, currentLeftDist, destID);
 		}else {
-			return leafDist < leftDist ? leaf : left;
+			dest = checkRightRoutingTable(startRow, startCol, currentRightDist, destID);
 		}
 
+		return dest == null ? peer : dest;
 	}
 
 	public boolean addToLeafSet(PeerTriplet peer) {
 		try {
-			leafSetLock.acquire(MAX_THREADS);
 			int newRightDistance = IDUtils.rightDistance(identifier, peer.identifier);
 			int newLeftDistance = IDUtils.leftDistance(identifier, peer.identifier);
 			boolean found = false;
+			leafSetLock.acquire(MAX_THREADS);
+
 			for (int i = 0; i < LEAF_SET_SIZE; i++) {
 				if(rightLeafset[i] == null || rightLeafset[i].identifier.equals(identifier) ||
 						(newRightDistance < IDUtils.rightDistance(identifier, rightLeafset[i].identifier) && !found)) {

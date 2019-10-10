@@ -100,14 +100,11 @@ public class PeerNode implements Node{
 		try {
 			routing = new NodeRouting(IDENTITIFER_BITS/4, 16, identifier);
 			if(response.getEntryHost().isEmpty() && response.getEntryPort() == 0) {
-//				this.idValue = Integer.parseInt(identifier, 16);
 				LOGGER.info(String.format("%s successfully entered the network with ID: %s", nickname, identifier));
 				routing.addToLeafSet(new PeerTriplet(hostname, port, identifier));
 				routing.printRoutingTable();
 				routing.printLeafSet();
 			}else {
-//				LOGGER.info(String.format("Collision using ID: %s, entering with new ID", identifier));
-//				LOGGER.info(String.format("Sending entry request from id: %s to %s:%d", this.identifier, response.getEntryHost(), response.getEntryPort()));
 				TCPSender sender = new TCPSender(new Socket(response.getEntryHost(), response.getEntryPort()));
 				sender.sendData(new EntryRequest(this.hostname, this.port, identifier, IDENTITIFER_BITS / 4, this.port).getBytes());
 				sender.close();
@@ -169,10 +166,15 @@ public class PeerNode implements Node{
 			PeerTriplet[] neighborRightSet = new PeerTriplet[LEAF_SET_SIZE];
 			PeerTriplet[] neighborLeftSet = new PeerTriplet[LEAF_SET_SIZE];
 			routing.aquireLeafSet();
-			System.arraycopy(routing.getRightLeafset(), 0, neighborRightSet, 1, neighborRightSet.length-1);
+			System.arraycopy(routing.getRightLeafset(), 0, neighborRightSet, 0, neighborRightSet.length);
 			System.arraycopy(routing.getLeftLeafSet(), 0, neighborLeftSet, 0, neighborLeftSet.length);
-			neighborRightSet[0] = new PeerTriplet(hostname, port, identifier);
+			if(IDUtils.leftDistance(identifier, request.getDestinationId()) <= IDUtils.rightDistance(identifier, request.getDestinationId())) {
+				neighborRightSet[0] = new PeerTriplet(hostname, port, identifier);
+			}else neighborLeftSet[0] = new PeerTriplet(hostname, port, identifier);
+//			routing.addToLeafSet(new PeerTriplet(request.getHost(), request.getPort(), request.getDestinationId()));
 			routing.releaseLeafSet();
+
+
 
 			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows(), request.getRouteTrace());
 			sender.sendData(response.getBytes());
@@ -222,7 +224,7 @@ public class PeerNode implements Node{
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
 		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(),
 				request.getPort(), request.getDestinationId(), request.getHopCount()));
-		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, originHost, request.getForwardPort(), request.getDestinationId());
+		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
 		request.setTableEntryIfEmpty(rowIndex, Integer.parseInt(identifier.substring(rowIndex, rowIndex+1),16), new PeerTriplet(hostname, port, identifier));
 		if(rowColEntry == null || rowColEntry.identifier.equals(request.getDestinationId())) {
 			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
@@ -261,10 +263,32 @@ public class PeerNode implements Node{
 			case ENTRANCE_BROADCAST:
 				this.handleEntranceBroadCast((EntranceBroadcast) event);
 				break;
+			case TRAVERSE_REQUEST:
+				handleTraversal((TraverseRequest) event);
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;
 		}
+	}
+
+	public void handleTraversal(TraverseRequest request) {
+		request.addPeer(identifier);
+		if(request.getPeers().get(0).equals(identifier)) {
+			LOGGER.info("\nTraverse Route: "+String.join(" ---> ", request.getPeers()));
+		}else sendTraversal(request);
+	}
+
+	public void sendTraversal(TraverseRequest request) {
+		routing.aquireLeafSet();
+		PeerTriplet left = routing.getLeftNeighbor();
+		sendEvent(left.identifier, left.host, left.port, request);
+		routing.releaseLeafSet();
+	}
+
+	public void traverseNetwork() {
+		TraverseRequest request = new TraverseRequest(identifier);
+		sendTraversal(request);
 	}
 
 	public void inputHandler() {
@@ -290,10 +314,15 @@ public class PeerNode implements Node{
 								routing.printRoutingTable();
 								routing.printLeafSet();
 								break;
+							case "traversal":
+								traverseNetwork();
+								break;
 							default:
 								break;
 						}
 						break;
+					case "exit":
+
 				}
 			}
 		}
