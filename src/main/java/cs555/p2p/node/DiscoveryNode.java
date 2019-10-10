@@ -104,7 +104,8 @@ public class DiscoveryNode implements Node{
 	}
 
 	private void removePeer(ExitRequest request, Socket socket) {
-		HostPort success = nodeIDMappings.remove(request.getIdentifier());
+		HostPort success = nodeIDMappings.remove(request.getIdentifier().toLowerCase());
+		LOGGER.info("TRYTING TO REMOVE NODE WITH ID: " + request.getIdentifier() + " SUCCESS: " + success);
 		if(success != null) {
 			try {
 				TCPSender sender = new TCPSender(new Socket(socket.getInetAddress().getCanonicalHostName(), request.getPort()));
@@ -124,6 +125,7 @@ public class DiscoveryNode implements Node{
 				break;
 			case EXIT_REQUEST:
 				removePeer((ExitRequest) event, socket);
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;

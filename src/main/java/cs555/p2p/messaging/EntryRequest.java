@@ -39,7 +39,7 @@ public class EntryRequest implements Event{
 		if(tableRows[row] == null) tableRows[row] = arr;
 		else {
 			for(int col = 0; col < arr.length; col++) {
-				if(arr[col] != null) setTableEntryIfEmpty(row, col, arr[col]);
+				setTableEntryIfEmpty(row, col, arr[col]);
 			}
 		}
 	}

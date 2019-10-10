@@ -94,6 +94,21 @@ public class NodeRouting {
 		printRoutingTable();
 	}
 
+	public void addEntryToRowIfNonEmpty(PeerTriplet entry, int row) {
+		int col = Integer.parseInt(entry.identifier.substring(row, row+1), 16);
+		try {
+			routingTableLock.acquire(MAX_THREADS);
+			if(routingTable[row] == null) {
+				routingTable[row] = new PeerTriplet[16];
+			}
+			if(routingTable[row][col] == null) routingTable[row][col] = entry;
+			routingTableLock.release(MAX_THREADS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		printRoutingTable();
+	}
+
 	public void overwriteRoutingTable(PeerTriplet[][] table, PeerTriplet[] rightLeafset, PeerTriplet[] leftLeafSet) {
 		try {
 			routingTableLock.acquire(MAX_THREADS);
@@ -142,6 +157,7 @@ public class NodeRouting {
 	private PeerTriplet checkLeftRoutingTable(int row, int col, int minDistance, String destID) {
 		try {
 			routingTableLock.acquire(1);
+			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
 			for(int i = col; i > 0; i--) {
 				if (routingTable[row][i] == null) {
 					continue;

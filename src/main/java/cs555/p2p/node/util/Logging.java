@@ -31,14 +31,21 @@ public class Logging {
 	public static String formatRoutingTable(PeerTriplet[][] routingTable) {
 		StringBuilder builder = new StringBuilder();
 		builder.append('\n');
-		builder.append(Utils.formatString("",7));
+
+		for(int i = 0; i < 17; i++) {
+			builder.append("+-------");
+		}
+		builder.append("+\n");
+		builder.append(Utils.formatString("|",8));
+		builder.append('|');
 		for(int i = 0; i < 16; i++) {
 			builder.append(Utils.formatString("Col " + i, 7));
 			builder.append('|');
 		}
 		builder.append('\n');
 		for(int row = 0; row < routingTable.length; row++) {
-			builder.append(Utils.formatString("Row " + row, 7));
+			builder.append(Utils.formatString("|Row " + row, 8));
+			builder.append('|');
 			if(routingTable[row] != null) {
 				for (PeerTriplet peer : routingTable[row]) {
 					if (peer != null)
@@ -54,7 +61,10 @@ public class Logging {
 			}
 			builder.append('\n');
 		}
-
+		for(int i = 0; i < 17; i++) {
+			builder.append("+-------");
+		}
+		builder.append("+\n");
 
 		return builder.toString();
 	}

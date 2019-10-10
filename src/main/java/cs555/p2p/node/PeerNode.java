@@ -182,9 +182,6 @@ public class PeerNode implements Node{
 	private void forwardEntryRequest(EntryRequest request, PeerTriplet dest, int rowIndex) {
 		request.setForwardPort(this.port);
 
-		if(routing.getRoutingRow(rowIndex) != null) {
-			request.setTableRow(rowIndex, Arrays.copyOf(routing.getRoutingRow(rowIndex), 16));
-		}
 		sendEvent(dest.identifier, dest.host, dest.port, request);
 	}
 
@@ -219,6 +216,15 @@ public class PeerNode implements Node{
 		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(),
 				request.getPort(), request.getDestinationId(), request.getHopCount()));
 		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
+
+		routing.aquireTable();
+		for(int row = rowIndex; row >= 0; row--) {
+			if (routing.getRoutingRow(row) != null) {
+				request.setTableRow(row, Arrays.copyOf(routing.getRoutingRow(row), 16));
+			}
+		}
+		routing.releaseTable();
+
 		request.setTableEntryIfEmpty(rowIndex, Integer.parseInt(identifier.substring(rowIndex, rowIndex+1),16), new PeerTriplet(hostname, port, identifier));
 		if(rowColEntry == null || rowColEntry.identifier.equals(request.getDestinationId())) {
 			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
@@ -323,6 +329,8 @@ public class PeerNode implements Node{
 			sendEvent(right.identifier, right.host, right.port, rightExit);
 		}
 		routing.releaseLeafSet();
+		LOGGER.info(String.format("%s exited the network", nickname));
+		System.exit(0);
 	}
 
 	private void exitNetwork() {
@@ -369,8 +377,7 @@ public class PeerNode implements Node{
 						break;
 					case "exit":
 						exitNetwork();
-						LOGGER.info(String.format("%s exited the network", nickname));
-						System.exit(0);
+						break;
 				}
 			}
 		}
@@ -390,7 +397,7 @@ public class PeerNode implements Node{
 				if(args.length == 3) {
 					peerNode = new PeerNode(args[0], discoveryPort, args[2]);
 				}else if(args.length == 4) {
-					peerNode = new PeerNode(args[0], discoveryPort, args[2], args[3]);
+					peerNode = new PeerNode(args[0], discoveryPort, args[3], args[2]);
 				}else {
 					peerNode = new PeerNode(args[0], discoveryPort);
 				}
@@ -399,12 +406,6 @@ public class PeerNode implements Node{
 			}catch(NumberFormatException nfe) {
 				nfe.printStackTrace();
 				LOGGER.severe("Discovery Node requires a valid integer port: 1024 < [port] < 65536");
-//				System.exit(1);
-			}
-			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
 		}
 	}

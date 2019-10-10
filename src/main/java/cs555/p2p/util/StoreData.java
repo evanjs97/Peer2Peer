@@ -1,5 +1,9 @@
 package cs555.p2p.util;
 
+import cs555.p2p.messaging.StoreRequest;
+import cs555.p2p.transport.TCPSender;
+
+import java.net.Socket;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -16,7 +20,13 @@ public class StoreData {
 	}
 
 	private void uploadFile(String filename, String dest) {
-
+		byte[] fileBytes = Utils.getFileByteArr(filename);
+		if(fileBytes == null) {
+			LOGGER.severe("Unable to read file: " + filename);
+			System.exit(1);
+		}
+		StoreRequest storeRequest = new StoreRequest()
+		TCPSender sender = new TCPSender(new Socket(discoveryHost, discoveryPort))
 	}
 
 	public void inputHandler() {
@@ -35,15 +45,23 @@ public class StoreData {
 
 	public static void main(String[] args) {
 		LOGGER.setLevel(Level.INFO);
-		if (args.length < 2) {
-			LOGGER.severe("Peer Node requires at least 2 arguments []: String:[discoveryServer] int:[port]");
+		if (args.length < 3) {
+			LOGGER.severe("Peer Node requires at least 2 arguments []: String:[discoveryServer] int:[port] command:[put]");
 			System.exit(1);
 		} else {
 			try {
 				int discoveryPort = Integer.parseInt(args[1]);
 				if (discoveryPort > 65535 || discoveryPort < 1024) throw new NumberFormatException();
 				StoreData storeData = new StoreData(args[0], discoveryPort);
-				storeData.inputHandler();
+
+				switch (args[2]) {
+					case "put":
+						if(args.length < 5) {
+							LOGGER.severe("usage with put command: String:[discoveryServer] int:[port] command:[put] String:[filename] String:[destination]");
+							System.exit(1);
+						}
+						storeData.uploadFile(args[3], args[4]);
+				}
 			} catch (NumberFormatException nfe) {
 				nfe.printStackTrace();
 			}
