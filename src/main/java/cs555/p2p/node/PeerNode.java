@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.rmi.UnexpectedException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -100,12 +101,13 @@ public class PeerNode implements Node{
 			routing = new NodeRouting(IDENTITIFER_BITS/4, 16, identifier);
 			if(response.getEntryHost().isEmpty() && response.getEntryPort() == 0) {
 //				this.idValue = Integer.parseInt(identifier, 16);
-				LOGGER.info(String.format("%s successfully entered the network", nickname));
+				LOGGER.info(String.format("%s successfully entered the network with ID: %s", nickname, identifier));
 				routing.addToLeafSet(new PeerTriplet(hostname, port, identifier));
 				routing.printRoutingTable();
 				routing.printLeafSet();
 			}else {
-				LOGGER.info(String.format("Sending entry request from id: %s to %s:%d", this.identifier, response.getEntryHost(), response.getEntryPort()));
+//				LOGGER.info(String.format("Collision using ID: %s, entering with new ID", identifier));
+//				LOGGER.info(String.format("Sending entry request from id: %s to %s:%d", this.identifier, response.getEntryHost(), response.getEntryPort()));
 				TCPSender sender = new TCPSender(new Socket(response.getEntryHost(), response.getEntryPort()));
 				sender.sendData(new EntryRequest(this.hostname, this.port, identifier, IDENTITIFER_BITS / 4, this.port).getBytes());
 				sender.close();
@@ -146,9 +148,10 @@ public class PeerNode implements Node{
 	}
 
 	private void handleEntryAcceptance(EntryAcceptanceResponse response) {
-		LOGGER.info(String.format("%s successfully entered the network", nickname));
+		LOGGER.info(String.format("%s successfully entered the network with ID: %s", nickname, identifier));
 		routing.overwriteRoutingTable(response.getTableRows(), response.getRightLeafSet(), response.getLeftLeafSet());
 
+		printRoute(response.getRoute());
 		routing.printRoutingTable();
 		routing.printLeafSet();
 
@@ -156,7 +159,9 @@ public class PeerNode implements Node{
 
 	}
 
-
+	private void printRoute(List<String> route) {
+		LOGGER.info("\nRoute: "+String.join(" ---> ", route));
+	}
 
 	private void returnToEnteringNode(EntryRequest request) {
 		try {
@@ -169,7 +174,7 @@ public class PeerNode implements Node{
 			neighborRightSet[0] = new PeerTriplet(hostname, port, identifier);
 			routing.releaseLeafSet();
 
-			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows());
+			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows(), request.getRouteTrace());
 			sender.sendData(response.getBytes());
 			sender.flush();
 			senders.put(request.getDestinationId(), sender);
@@ -180,7 +185,8 @@ public class PeerNode implements Node{
 
 	private void forwardEntryRequest(EntryRequest request, PeerTriplet dest, int rowIndex) {
 		request.setForwardPort(this.port);
-		if(request.getTableRows()[rowIndex] == null && routing.getRoutingRow(rowIndex) != null) {
+
+		if(routing.getRoutingRow(rowIndex) != null) {
 			request.setTableRow(rowIndex, Arrays.copyOf(routing.getRoutingRow(rowIndex), 16));
 		}
 		sendEvent(dest.identifier, dest.host, dest.port, request);
@@ -212,14 +218,18 @@ public class PeerNode implements Node{
 		if(rowIndex >= IDENTITIFER_BITS/4)
 			throw new UnexpectedException("ID of target matches current ID: Node ID's must be unique");
 
+		request.addRouteID(identifier);
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
-
+		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(),
+				request.getPort(), request.getDestinationId(), request.getHopCount()));
 		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, originHost, request.getForwardPort(), request.getDestinationId());
+		request.setTableEntryIfEmpty(rowIndex, Integer.parseInt(identifier.substring(rowIndex, rowIndex+1),16), new PeerTriplet(hostname, port, identifier));
 		if(rowColEntry == null || rowColEntry.identifier.equals(request.getDestinationId())) {
 			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
 			returnToEnteringNode(request);
 		}else {
 			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", rowColEntry.host, rowColEntry.port, rowColEntry.identifier));
+
 			forwardEntryRequest(request, rowColEntry, rowIndex);
 		}
 
@@ -233,6 +243,7 @@ public class PeerNode implements Node{
 				p2pEntry((RegistrationSuccess) event);
 				break;
 			case ID_NOT_AVAILABLE:
+				LOGGER.info(String.format("Collision using ID: %s, entering with new ID", identifier));
 				generateID();
 				register();
 				break;

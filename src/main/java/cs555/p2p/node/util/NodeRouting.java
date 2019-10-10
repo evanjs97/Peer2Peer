@@ -105,7 +105,7 @@ public class NodeRouting {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		printRoutingTable();
+//		printRoutingTable();
 
 	}
 
@@ -148,7 +148,7 @@ public class NodeRouting {
 				}
 			}
 			startRow--;
-			startCol = routingTable[0].length-1;
+			startCol = 15;
 		}
 		return minPeer;
 	}

@@ -25,6 +25,7 @@ for i in `cat machine_list`; do
        		OPTIONS='--tab -e "ssh -t '$i' '$CURRENT'"'
         	COMMAND+=" $OPTIONS"
         	let "nickname++"
+        	let "nickname++"
     done
 done
 

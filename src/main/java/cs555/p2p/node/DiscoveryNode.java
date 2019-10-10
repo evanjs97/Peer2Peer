@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.*;
@@ -115,6 +118,36 @@ public class DiscoveryNode implements Node{
 		}
 	}
 
+	private void printNodes() {
+		StringBuilder builder = new StringBuilder();
+		builder.append('\n');
+		builder.append("Registered Nodes\n");
+		for(Map.Entry<String, HostPort> entry : nodeIDMappings.entrySet()) {
+			builder.append("Host: ");
+			builder.append(entry.getValue().host);
+			builder.append(':');
+			builder.append(entry.getValue().port);
+			builder.append("\tID: ");
+			builder.append(entry.getKey());
+			builder.append('\n');
+		}
+		LOGGER.info(builder.toString());
+	}
+
+	public void inputHandler() {
+		Scanner scan = new Scanner(System.in);
+		while (true) {
+			while (scan.hasNextLine()) {
+				String[] input = scan.nextLine().split("\\s+");
+				switch (input[0]) {
+					case "list-nodes":
+						printNodes();
+						break;
+				}
+			}
+		}
+	}
+
 	public static void main(String[] args) {
 		LOGGER.setLevel(Level.INFO);
 		if(args.length < 1) {
@@ -126,7 +159,7 @@ public class DiscoveryNode implements Node{
 				if(port > 65535 || port < 1024) throw new NumberFormatException();
 				DiscoveryNode discoveryNode = new DiscoveryNode(port);
 				discoveryNode.init();
-
+				discoveryNode.inputHandler();
 			}catch(NumberFormatException nfe) {
 				LOGGER.severe("Discovery Node requires a valid integer port: 1024 < [port] < 65536");
 				System.exit(1);
