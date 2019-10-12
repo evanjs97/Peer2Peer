@@ -247,13 +247,15 @@ public class NodeRouting {
 		int currentRightDist = IDUtils.rightDistance(identifier, destID);
 		int currentLeftDist = IDUtils.leftDistance(identifier, destID);
 		int minDist = Math.min(currentLeftDist, currentRightDist);
-		PeerTriplet left = findMinInLeafSet(leftLeafSet, destID, currentLeftDist);
-		PeerTriplet right = findMinInLeafSet(rightLeafset, destID, currentRightDist);
+		PeerTriplet left = findMinInLeafSet(leftLeafSet, destID, minDist);
+		PeerTriplet right = findMinInLeafSet(rightLeafset, destID, minDist);
 
 		int leftDistance = Integer.MAX_VALUE;
 		if(left != null) leftDistance = Math.min(IDUtils.rightDistance(left.identifier, destID), IDUtils.leftDistance(left.identifier, destID));
 		int rightDistance = Integer.MAX_VALUE;
 		if(right != null) rightDistance = Math.min(IDUtils.rightDistance(right.identifier, destID), IDUtils.leftDistance(right.identifier, destID));
+
+
 		PeerTriplet minimum = leftDistance < rightDistance && leftDistance < minDist ?
 				left : rightDistance < leftDistance && rightDistance < minDist ? right : null;
 		minDist = Math.min(minDist, Math.min(leftDistance, rightDistance));

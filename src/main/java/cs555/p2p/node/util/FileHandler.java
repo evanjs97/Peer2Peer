@@ -12,7 +12,6 @@ public class FileHandler {
 	private static final Logger LOGGER = Logger.getLogger(FileHandler.class.getName());
 	private static final String BASE_DIR = "/tmp/evanjs";
 	private final ConcurrentHashMap<String, String> fileToID = new ConcurrentHashMap<>();
-
 	public boolean storeFile(String filename, String destination, byte[] fileBytes, String identifier) {
 		filename = filename.contains("/") ? filename.substring(filename.lastIndexOf("/")+1) : filename;
 		String separator = destination.charAt(0) == '/' ? "" : "/";

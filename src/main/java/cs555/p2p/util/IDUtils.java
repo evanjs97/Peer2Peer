@@ -1,11 +1,14 @@
 package cs555.p2p.util;
 
+import org.omg.PortableInterceptor.LOCATION_FORWARD;
+
 import java.math.BigInteger;
 import java.rmi.UnexpectedException;
 import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.logging.Logger;
 
 public class IDUtils {
 	private static int MAX_NODE_VALUE = Integer.parseInt("FFFF",16);
@@ -64,15 +67,17 @@ public class IDUtils {
 	public static int leftDistance(String currentID, String destID) {
 		int currentIDValue = Integer.parseInt(currentID, 16);
 		int destIDValue = Integer.parseInt(destID, 16);
-		if(destID.compareTo(currentID) >= 0) return destIDValue - currentIDValue;
-		else return (MAX_NODE_VALUE - currentIDValue) + destIDValue;
+//		System.out.println("CURRENT: " + currentIDValue + " DEST: " + destIDValue);
+		if(destIDValue >= currentIDValue) return destIDValue - currentIDValue;
+		else return Math.abs((MAX_NODE_VALUE - currentIDValue) + destIDValue);
 	}
 
 	public static int rightDistance(String currentID, String destID) {
 		int currentIDValue = Integer.parseInt(currentID, 16);
 		int destIDValue = Integer.parseInt(destID, 16);
-		if(destID.compareTo(currentID) <= 0) return currentIDValue - destIDValue;
-		else return currentIDValue + (MAX_NODE_VALUE - destIDValue); //65F3+FFFF-FEEB=65F3+0114
+//		System.out.println("CURRENT: " + currentIDValue + " DEST: " + destIDValue);
+		if(destIDValue <= currentIDValue) return currentIDValue - destIDValue;
+		else return Math.abs(currentIDValue + (MAX_NODE_VALUE - destIDValue)); //65F3+FFFF-FEEB=65F3+0114
 	}
 
 //	public static boolean hostIsCloser(String id1, String id2, String destID)  {
