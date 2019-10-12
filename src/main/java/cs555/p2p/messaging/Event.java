@@ -20,7 +20,10 @@ public interface Event {
 		TRAVERSE_REQUEST(7),
 		EXIT_REQUEST(8),
 		EXIT_SUCCESS_RESPONSE(9),
-		STORE_REQUEST(10);
+		STORE_REQUEST(10),
+		PEER_REQUEST(11),
+		PEER_RESPONSE(12),
+		STORE_RESPONSE(13);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

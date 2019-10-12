@@ -77,6 +77,18 @@ public class EventFactory {
 				case EXIT_SUCCESS_RESPONSE:
 					e = new ExitSuccessResponse();
 					break;
+				case STORE_REQUEST:
+					e = new StoreRequest(din);
+					break;
+				case PEER_REQUEST:
+					e = new PeerRequest(din);
+					break;
+				case PEER_RESPONSE:
+					e = new PeerResponse(din);
+					break;
+				case STORE_RESPONSE:
+					e = new StoreResponse(din);
+					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");
 					break;

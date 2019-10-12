@@ -1,6 +1,7 @@
 package cs555.p2p.node;
 
 import cs555.p2p.messaging.*;
+import cs555.p2p.node.util.FileHandler;
 import cs555.p2p.node.util.NodeRouting;
 import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
@@ -27,6 +28,7 @@ public class PeerNode implements Node{
 	private final static int IDENTITIFER_BITS = 16;
 	private final static int LEAF_SET_SIZE = 1;
 
+	private final FileHandler fileHandler;
 	private final String discoveryHost;
 	private final int discoveryPort;
 	private int port;
@@ -66,6 +68,7 @@ public class PeerNode implements Node{
 		}
 		this.identifier = identifier;
 		this.nickname = nickname == null ? this.hostname : nickname;
+		this.fileHandler = new FileHandler();
 	}
 
 	private void init() {
@@ -179,8 +182,7 @@ public class PeerNode implements Node{
 		}
 	}
 
-	private void forwardEntryRequest(EntryRequest request, PeerTriplet dest, int rowIndex) {
-		request.setForwardPort(this.port);
+	private void forwardRequest(Event request, PeerTriplet dest) {
 
 		sendEvent(dest.identifier, dest.host, dest.port, request);
 	}
@@ -231,8 +233,8 @@ public class PeerNode implements Node{
 			returnToEnteringNode(request);
 		}else {
 			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", rowColEntry.host, rowColEntry.port, rowColEntry.identifier));
-
-			forwardEntryRequest(request, rowColEntry, rowIndex);
+			request.setForwardPort(this.port);
+			forwardRequest(request, rowColEntry);
 		}
 
 
@@ -272,10 +274,42 @@ public class PeerNode implements Node{
 			case EXIT_SUCCESS_RESPONSE:
 				exitGracefully();
 				break;
+			case STORE_REQUEST:
+				handleStoreRequest((StoreRequest) event);
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;
 		}
+	}
+
+	private void storeFile(StoreRequest request) {
+		boolean success = fileHandler.storeFile(request.getFilename(), request.getDestination(), request.getFileBytes(), request.getIdentifier());
+		if(success) {
+			LOGGER.info("Successfully stored file with name: " + request.getFilename() + " and ID: " + request.getIdentifier());
+			printRoute(request.getRoute());
+		}
+		StoreResponse response = new StoreResponse(success);
+		try {
+			TCPSender sender = new TCPSender(new Socket(request.getStoreDataHost(), request.getStoreDataPort()));
+			sender.sendData(response.getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void handleStoreRequest(StoreRequest request) {
+		request.updateRoute(identifier);
+		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
+		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
+		PeerTriplet routingDest = routing.findRoutingDest(row, col, request.getIdentifier());
+		if(routingDest == null) {
+			storeFile(request);
+		}else {
+			forwardRequest(request, routingDest);
+		}
+
 	}
 
 	private void handleExitRequest(ExitRequest request) {

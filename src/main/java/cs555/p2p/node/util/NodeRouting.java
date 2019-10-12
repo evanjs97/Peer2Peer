@@ -4,6 +4,7 @@ import cs555.p2p.util.IDUtils;
 import cs555.p2p.util.PeerTriplet;
 
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 
@@ -86,7 +87,9 @@ public class NodeRouting {
 			if(routingTable[row] == null) {
 				routingTable[row] = new PeerTriplet[16];
 			}
-			routingTable[row][col] = entry;
+			if(routingTable[row][col] != null) {
+				if(ThreadLocalRandom.current().nextInt(2) == 1)routingTable[row][col] = entry;
+			}else routingTable[row][col] = entry;
 			routingTableLock.release(MAX_THREADS);
 		} catch (InterruptedException e) {
 			e.printStackTrace();

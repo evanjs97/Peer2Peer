@@ -117,6 +117,18 @@ public class DiscoveryNode implements Node{
 		}
 	}
 
+	public void handlePeerRequest(PeerRequest request, Socket socket) {
+		HostPort hostPort = getRandomPeer(request.getIdentifier());
+		PeerResponse peerResponse = new PeerResponse(hostPort.host, hostPort.port);
+		try {
+			TCPSender sender = new TCPSender(new Socket(socket.getInetAddress().getCanonicalHostName(), request.getPort()));
+			sender.sendData(peerResponse.getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	public void onEvent(Event event, Socket socket) {
 		switch (event.getType()) {
@@ -125,6 +137,9 @@ public class DiscoveryNode implements Node{
 				break;
 			case EXIT_REQUEST:
 				removePeer((ExitRequest) event, socket);
+				break;
+			case PEER_REQUEST:
+				handlePeerRequest((PeerRequest) event, socket);
 				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());

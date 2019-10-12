@@ -11,6 +11,7 @@ public class TCPServer implements Runnable{
 	private ServerSocket serverSocket;
 	private int port;
 	private Node node;
+	private volatile boolean done;
 
 	/**
 	 * TCPServerThread constructor creates new Server thread
@@ -19,6 +20,7 @@ public class TCPServer implements Runnable{
 	public TCPServer(int port, Node node) {
 		this.node = node;
 		openServerSocket(port);
+		this.done = false;
 		this.port = this.serverSocket.getLocalPort();
 	}
 
@@ -33,6 +35,10 @@ public class TCPServer implements Runnable{
 		}catch(IOException ioe) {
 			System.out.println(ioe.getMessage());
 		}
+	}
+
+	public void stop() {
+		this.done = true;
 	}
 
 	public InetAddress getInetAddress() {
@@ -53,7 +59,7 @@ public class TCPServer implements Runnable{
 	 */
 	@Override
 	public void run() {
-		while (true) {
+		while (!done) {
 			try {
 				Socket socket = serverSocket.accept();
 				new Thread(new TCPReceiver(socket, node)).start();
