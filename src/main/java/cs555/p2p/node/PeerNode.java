@@ -153,6 +153,10 @@ public class PeerNode implements Node{
 
 	}
 
+	private void printStoredFiles() {
+		LOGGER.info(fileHandler.toString());
+	}
+
 	private void printRoute(List<String> route) {
 		LOGGER.info("\nRoute: "+String.join(" ---> ", route));
 	}
@@ -277,9 +281,39 @@ public class PeerNode implements Node{
 			case STORE_REQUEST:
 				handleStoreRequest((StoreRequest) event);
 				break;
+			case FILE_DOWNLOAD_REQUEST:
+				handleFileDownloadRequest((FileDownloadRequest) event);
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;
+		}
+	}
+
+	private void handleFileDownloadRequest(FileDownloadRequest request) {
+		request.updateRoute(identifier);
+		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
+		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
+		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+
+		if(routingDest == null) {
+			LOGGER.info("Handling file download request with ID: " + request.getIdentifier());
+			retrieveFile(request);
+		}else {
+			LOGGER.info("Forwarding file download request with ID: " + request.getIdentifier());
+			forwardRequest(request, routingDest);
+		}
+	}
+
+	private void retrieveFile(FileDownloadRequest request) {
+		byte[] fileBytes = fileHandler.readFile(request.getFilename());
+		FileDownloadResponse response = new FileDownloadResponse(fileBytes, request.getRoute());
+		try {
+			TCPSender sender = new TCPSender(new Socket(request.getHostname(), request.getPort()));
+			sender.sendData(response.getBytes());
+			sender.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -287,9 +321,9 @@ public class PeerNode implements Node{
 		boolean success = fileHandler.storeFile(request.getFilename(), request.getDestination(), request.getFileBytes(), request.getIdentifier());
 		if(success) {
 			LOGGER.info("Successfully stored file with name: " + request.getFilename() + " and ID: " + request.getIdentifier());
-			printRoute(request.getRoute());
+//			printRoute(request.getRoute());
 		}
-		StoreResponse response = new StoreResponse(success);
+		StoreResponse response = new StoreResponse(success, request.getRoute());
 		try {
 			TCPSender sender = new TCPSender(new Socket(request.getStoreDataHost(), request.getStoreDataPort()));
 			sender.sendData(response.getBytes());
@@ -303,7 +337,7 @@ public class PeerNode implements Node{
 		request.updateRoute(identifier);
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
-		PeerTriplet routingDest = routing.findRoutingDest(row, col, request.getIdentifier());
+		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
 		if(routingDest == null) {
 			storeFile(request);
 		}else {
@@ -398,14 +432,16 @@ public class PeerNode implements Node{
 							case "table":
 								routing.printRoutingTable();
 								break;
-							case "all":
+							case "routing":
 								routing.printRoutingTable();
 								routing.printLeafSet();
 								break;
 							case "traversal":
 								traverseNetwork();
 								break;
+							case "files":
 							default:
+								printStoredFiles();
 								break;
 						}
 						break;

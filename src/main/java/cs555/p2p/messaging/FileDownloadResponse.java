@@ -5,24 +5,28 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class StoreResponse implements Event{
-	private boolean success;
+public class FileDownloadResponse implements Event{
+
+	private byte[] fileBytes;
 	private List<String> route;
 
-	public StoreResponse(boolean success, List<String> route) {
-		this.success = success;
+	public List<String> getRoute() {
+		return route;
+	}
+
+	private byte[] getFileBytes() { return fileBytes; }
+
+	public FileDownloadResponse(byte[] bytes, List<String> route) {
+		this.fileBytes = bytes;
 		this.route = route;
 	}
 
-	public boolean wasSuccess() { return this.success; }
-
-	public List<String> getRoute() { return route; }
-
-	public StoreResponse(DataInputStream din) {
+	public FileDownloadResponse(DataInputStream din) {
 		MessageReader messageReader = new MessageReader(din);
-		route = new ArrayList<>();
 		try {
-			success = messageReader.readBoolean();
+			route = new ArrayList<>();
+			boolean success = messageReader.readBoolean();
+			fileBytes = success ? messageReader.readByteArr() : null;
 			messageReader.readStringList(route);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -31,14 +35,15 @@ public class StoreResponse implements Event{
 
 	@Override
 	public Type getType() {
-		return Type.STORE_RESPONSE;
+		return Type.FILE_DOWNLOAD_RESPONSE;
 	}
 
 	@Override
 	public byte[] getBytes() throws IOException {
 		MessageMarshaller messageMarshaller = new MessageMarshaller();
 		messageMarshaller.writeInt(getType().getValue());
-		messageMarshaller.writeBoolean(success);
+		messageMarshaller.writeBoolean(fileBytes != null);
+		messageMarshaller.writeByteArr(fileBytes);
 		messageMarshaller.writeStringList(route);
 		return messageMarshaller.getMarshalledData();
 	}

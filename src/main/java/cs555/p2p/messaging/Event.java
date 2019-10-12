@@ -23,7 +23,9 @@ public interface Event {
 		STORE_REQUEST(10),
 		PEER_REQUEST(11),
 		PEER_RESPONSE(12),
-		STORE_RESPONSE(13);
+		STORE_RESPONSE(13),
+		FILE_DOWNLOAD_REQUEST(14),
+		FILE_DOWNLOAD_RESPONSE(15);
 
 		private int value;
 		private static HashMap<Integer, Type> map = new HashMap<>();

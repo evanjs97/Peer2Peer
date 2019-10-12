@@ -89,6 +89,12 @@ public class EventFactory {
 				case STORE_RESPONSE:
 					e = new StoreResponse(din);
 					break;
+				case FILE_DOWNLOAD_REQUEST:
+					e = new FileDownloadRequest(din);
+					break;
+				case FILE_DOWNLOAD_RESPONSE:
+					e = new FileDownloadResponse(din);
+					break;
 				default:
 					System.err.println("Event of type " + type + " does not exist.");
 					break;

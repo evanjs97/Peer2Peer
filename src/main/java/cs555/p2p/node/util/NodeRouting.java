@@ -222,6 +222,61 @@ public class NodeRouting {
 		return null;
 	}
 
+	public PeerTriplet findMinInLeafSet(PeerTriplet[] leafSet, String destID, int minDistance) {
+		PeerTriplet minimum = null;
+		try {
+			leafSetLock.acquire(1);
+			for(int i = LEAF_SET_SIZE-1; i >= 0; i--) {
+				if(leafSet[i].identifier.equals(identifier)) continue;
+				int distance = Math.min(IDUtils.rightDistance(leafSet[i].identifier, destID), IDUtils.leftDistance(leafSet[i].identifier, destID));
+
+				if(minDistance > distance) {
+					minimum = leafSet[i];
+					minDistance = distance;
+				}
+			}
+
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		leafSetLock.release(1);
+		return minimum;
+	}
+
+	public PeerTriplet findClosestPeer(int startRow, int startCol, String destID) {
+		int currentRightDist = IDUtils.rightDistance(identifier, destID);
+		int currentLeftDist = IDUtils.leftDistance(identifier, destID);
+		int minDist = Math.min(currentLeftDist, currentRightDist);
+		PeerTriplet left = findMinInLeafSet(leftLeafSet, destID, currentLeftDist);
+		PeerTriplet right = findMinInLeafSet(rightLeafset, destID, currentRightDist);
+
+		int leftDistance = Integer.MAX_VALUE;
+		if(left != null) leftDistance = Math.min(IDUtils.rightDistance(left.identifier, destID), IDUtils.leftDistance(left.identifier, destID));
+		int rightDistance = Integer.MAX_VALUE;
+		if(right != null) rightDistance = Math.min(IDUtils.rightDistance(right.identifier, destID), IDUtils.leftDistance(right.identifier, destID));
+		PeerTriplet minimum = leftDistance < rightDistance && leftDistance < minDist ?
+				left : rightDistance < leftDistance && rightDistance < minDist ? right : null;
+		minDist = Math.min(minDist, Math.min(leftDistance, rightDistance));
+		left = checkLeftRoutingTable(startRow, startCol, minDist, destID);
+		right = checkRightRoutingTable(startRow, startCol, minDist, destID);
+
+		if(left != null) leftDistance = Math.min(IDUtils.rightDistance(left.identifier, destID), IDUtils.leftDistance(left.identifier, destID));
+		else leftDistance = Integer.MAX_VALUE;
+		if(right != null) rightDistance = Math.min(IDUtils.rightDistance(right.identifier, destID), IDUtils.leftDistance(right.identifier, destID));
+		else rightDistance = Integer.MAX_VALUE;
+
+		if(leftDistance < rightDistance && leftDistance < minDist) {
+			minDist = leftDistance;
+			minimum = left;
+		}
+		if(rightDistance < leftDistance && rightDistance < minDist) {
+			minDist = rightDistance;
+			minimum = right;
+		}
+
+		return minimum;
+	}
+
 	public PeerTriplet findRoutingDest(int startRow, int startCol, String destID) {
 		int currentRightDist = IDUtils.rightDistance(identifier, destID);
 		int currentLeftDist = IDUtils.leftDistance(identifier, destID);
