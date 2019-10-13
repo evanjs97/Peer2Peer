@@ -1,7 +1,5 @@
 package cs555.p2p.util;
 
-import cs555.p2p.node.DiscoveryNode;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.util.logging.Logger;
@@ -23,23 +21,12 @@ public class Utils {
 			LOGGER.severe("No file exists with that path: " + filename);
 			System.exit(1);
 		}
-//		try {
-			LOGGER.info("Reading file from path: " + filename);
 		try {
 			byte[] fileBytes = Files.readAllBytes(file.toPath());
 			return fileBytes;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-//			FileOutputStream fileInputStream = new FileOutputStream(file);
-//			byte[] fileBytes = new byte[(int)file.length()];
-//			fileInputStream.write(fileBytes);
-//			return fileBytes;
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
 		return null;
 	}
 }

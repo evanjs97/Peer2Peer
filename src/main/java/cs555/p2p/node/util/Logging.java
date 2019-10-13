@@ -6,6 +6,7 @@ import cs555.p2p.util.Utils;
 public class Logging {
 	public static String formatLeafSet(PeerTriplet[] leftLeafSet, PeerTriplet[] rightLeafset) {
 		StringBuilder builder = new StringBuilder();
+		builder.append('\n');
 		builder.append("Left Leaf Set: ");
 		builder.append('[');
 		for(PeerTriplet peer : leftLeafSet) {

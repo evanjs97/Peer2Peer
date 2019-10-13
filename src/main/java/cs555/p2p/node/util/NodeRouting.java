@@ -298,6 +298,17 @@ public class NodeRouting {
 		return dest == null ? peer : dest;
 	}
 
+	public boolean removeEntry(String identifier) {
+		int row = IDUtils.firstNonMatchingIndex(this.identifier, identifier);
+		int col = Integer.parseInt(identifier.substring(row, row+1), 16);
+		if(routingTable[row][col] == null) return false;
+		if(identifier.equals(routingTable[row][col].identifier)) {
+			routingTable[row][col] = null;
+			return true;
+		}
+		else return false;
+	}
+
 	public boolean addToLeafSet(PeerTriplet peer) {
 		try {
 			int newRightDistance = IDUtils.rightDistance(identifier, peer.identifier); //6F53-2716

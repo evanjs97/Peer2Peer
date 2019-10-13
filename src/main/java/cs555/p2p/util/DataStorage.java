@@ -140,15 +140,13 @@ public class DataStorage implements Node{
 	}
 
 	public void writeFileToDisk(FileDownloadResponse response) {
-		try {
-			if(response.getBytes() == null) {
-				LOGGER.severe("Error during file retrieval");
-				printRoute(response.getRoute());
-				System.exit(1);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
+		LOGGER.info("Downloaded " + response.getFileBytes().length + " bytes");
+		if(response.getFileBytes() == null) {
+			LOGGER.severe("Error during file retrieval");
+			printRoute(response.getRoute());
+			System.exit(1);
 		}
+
 		String temp = filename.contains("/") ? filename.substring(filename.lastIndexOf('/')+1) : filename;
 		String separator = fileDest.charAt(fileDest.length()-1) == '/' ? "" : "/";
 		File file = new File(fileDest+separator);
@@ -158,7 +156,7 @@ public class DataStorage implements Node{
 		File actualFile = new File(fileDest+separator+temp);
 		try {
 			FileOutputStream fileOutputStream = new FileOutputStream(actualFile);
-			fileOutputStream.write(response.getBytes());
+			fileOutputStream.write(response.getFileBytes());
 			LOGGER.info("Successfully wrote file to disk");
 			printRoute(response.getRoute());
 		} catch (FileNotFoundException e) {

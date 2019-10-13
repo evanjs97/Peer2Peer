@@ -5,6 +5,7 @@ import cs555.p2p.node.PeerNode;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -12,6 +13,9 @@ public class FileHandler {
 	private static final Logger LOGGER = Logger.getLogger(FileHandler.class.getName());
 	private static final String BASE_DIR = "/tmp/evanjs";
 	private final ConcurrentHashMap<String, String> fileToID = new ConcurrentHashMap<>();
+
+	public final Set<Map.Entry<String, String>> getFileSet() { return fileToID.entrySet(); }
+
 	public boolean storeFile(String filename, String destination, byte[] fileBytes, String identifier) {
 		filename = filename.contains("/") ? filename.substring(filename.lastIndexOf("/")+1) : filename;
 		String separator = destination.charAt(0) == '/' ? "" : "/";
@@ -44,9 +48,10 @@ public class FileHandler {
 
 
 	public byte[] readFile(String filename) {
-		LOGGER.info("Reading file: " + filename);
+
 		String separator = filename.charAt(0) == '/' ? "" : "/";
 		File file = new File(BASE_DIR+separator+filename);
+
 		try {
 			byte[] fileBytes = new byte[(int) file.length()];
 			FileInputStream inputStream = new FileInputStream(file);
@@ -63,7 +68,7 @@ public class FileHandler {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append("Stored Files:\n");
-		builder.append("  ID    Path");
+		builder.append("ID  \tPath\n");
 		for(Map.Entry<String, String> entry : fileToID.entrySet()) {
 			builder.append(entry.getValue());
 			builder.append('\t');

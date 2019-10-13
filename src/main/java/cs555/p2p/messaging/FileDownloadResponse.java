@@ -14,7 +14,7 @@ public class FileDownloadResponse implements Event{
 		return route;
 	}
 
-	private byte[] getFileBytes() { return fileBytes; }
+	public byte[] getFileBytes() { return fileBytes; }
 
 	public FileDownloadResponse(byte[] bytes, List<String> route) {
 		this.fileBytes = bytes;
@@ -28,9 +28,12 @@ public class FileDownloadResponse implements Event{
 			boolean success = messageReader.readBoolean();
 			fileBytes = success ? messageReader.readByteArr() : null;
 			messageReader.readStringList(route);
+			messageReader.close();
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
 	}
 
 	@Override

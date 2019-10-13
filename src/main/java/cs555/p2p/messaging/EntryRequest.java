@@ -109,7 +109,6 @@ public class EntryRequest implements Event{
 
 			port = messageReader.readInt();
 			dest = messageReader.readHex();
-			System.out.println("READING: " + host + ":" + port + " DEST: " + dest);
 			array = messageReader.read2DPeerArray();
 			forwardPort = messageReader.readInt();
 			hops = messageReader.readInt();
