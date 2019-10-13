@@ -8,10 +8,14 @@ import java.util.List;
 public class StoreResponse implements Event{
 	private boolean success;
 	private List<String> route;
+	private int hops;
 
-	public StoreResponse(boolean success, List<String> route) {
+	public int getHops() { return hops; }
+
+	public StoreResponse(boolean success, List<String> route, int hops) {
 		this.success = success;
 		this.route = route;
+		this.hops = hops;
 	}
 
 	public boolean wasSuccess() { return this.success; }
@@ -24,6 +28,7 @@ public class StoreResponse implements Event{
 		try {
 			success = messageReader.readBoolean();
 			messageReader.readStringList(route);
+			hops = messageReader.readInt();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -40,6 +45,7 @@ public class StoreResponse implements Event{
 		messageMarshaller.writeInt(getType().getValue());
 		messageMarshaller.writeBoolean(success);
 		messageMarshaller.writeStringList(route);
+		messageMarshaller.writeInt(hops);
 		return messageMarshaller.getMarshalledData();
 	}
 }

@@ -9,6 +9,9 @@ public class FileDownloadResponse implements Event{
 
 	private byte[] fileBytes;
 	private List<String> route;
+	private int hops;
+
+	public int getHops() { return hops;}
 
 	public List<String> getRoute() {
 		return route;
@@ -16,9 +19,10 @@ public class FileDownloadResponse implements Event{
 
 	public byte[] getFileBytes() { return fileBytes; }
 
-	public FileDownloadResponse(byte[] bytes, List<String> route) {
+	public FileDownloadResponse(byte[] bytes, List<String> route, int hops) {
 		this.fileBytes = bytes;
 		this.route = route;
+		this.hops = hops;
 	}
 
 	public FileDownloadResponse(DataInputStream din) {
@@ -28,6 +32,7 @@ public class FileDownloadResponse implements Event{
 			boolean success = messageReader.readBoolean();
 			fileBytes = success ? messageReader.readByteArr() : null;
 			messageReader.readStringList(route);
+			hops = messageReader.readInt();
 			messageReader.close();
 
 		} catch (IOException e) {
@@ -46,8 +51,9 @@ public class FileDownloadResponse implements Event{
 		MessageMarshaller messageMarshaller = new MessageMarshaller();
 		messageMarshaller.writeInt(getType().getValue());
 		messageMarshaller.writeBoolean(fileBytes != null);
-		messageMarshaller.writeByteArr(fileBytes);
+		if(fileBytes != null) messageMarshaller.writeByteArr(fileBytes);
 		messageMarshaller.writeStringList(route);
+		messageMarshaller.writeInt(hops);
 		return messageMarshaller.getMarshalledData();
 	}
 }

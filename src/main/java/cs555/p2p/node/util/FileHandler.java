@@ -46,6 +46,10 @@ public class FileHandler {
 		return true;
 	}
 
+	public void removeFile(String filename) {
+		LOGGER.info("Removing file with name: " + filename);
+		fileToID.remove(filename);
+	}
 
 	public byte[] readFile(String filename) {
 
@@ -58,7 +62,7 @@ public class FileHandler {
 			inputStream.read(fileBytes);
 			return fileBytes;
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			return null;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

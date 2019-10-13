@@ -14,10 +14,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.rmi.UnexpectedException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,7 +36,7 @@ public class PeerNode implements Node{
 	private String identifier;
 	private String nickname;
 
-	public NodeRouting routing;
+	private NodeRouting routing;
 	private final ConcurrentHashMap<String, TCPSender> senders;
 
 	private PeerNode(String discoveryHost, int discoveryPort) {
@@ -107,10 +104,12 @@ public class PeerNode implements Node{
 		try {
 			routing = new NodeRouting(IDENTITIFER_BITS/4, 16, identifier);
 			if(response.getEntryHost().isEmpty() && response.getEntryPort() == 0) {
+				LOGGER.info("No other peers, no hops needed");
 				LOGGER.info(String.format("%s successfully entered the network with ID: %s", nickname, identifier));
 				routing.printRoutingTable();
 				routing.addToLeafSet(new PeerTriplet(hostname, port, identifier));
 			}else {
+				LOGGER.info(String.format("Sending Entry Request to %s:%d", response.getEntryHost(), response.getEntryPort()));
 				TCPSender sender = new TCPSender(new Socket(response.getEntryHost(), response.getEntryPort()));
 				sender.sendData(new EntryRequest(this.hostname, this.port, identifier, IDENTITIFER_BITS / 4, this.port).getBytes());
 				sender.close();
@@ -141,18 +140,40 @@ public class PeerNode implements Node{
 		int firstNonMatching = IDUtils.firstNonMatchingIndex(broadcast.getPeer().identifier, identifier);
 		routing.addEntryToRow(broadcast.getPeer(), firstNonMatching);
 		routing.addToLeafSet(broadcast.getPeer());
+		sendFilesToNewNode(broadcast.getPeer());
 	}
 
 	private void handleEntryAcceptance(EntryAcceptanceResponse response) {
-		LOGGER.info(String.format("%s successfully entered the network with ID: %s", nickname, identifier));
+		LOGGER.info(String.format("%s successfully entered the network with ID: %s in %d hops", nickname, identifier, response.getHops()));
 		routing.overwriteRoutingTable(response.getTableRows(), response.getRightLeafSet(), response.getLeftLeafSet());
 
+		response.getRoute().add(identifier);
 		printRoute(response.getRoute());
 		routing.printRoutingTable();
 		routing.printLeafSet();
 
 		sendInfoToPeers();
+	}
 
+	private void sendFilesToNewNode(PeerTriplet peer) {
+		List<String> deletedFiles = new ArrayList<>();
+		for(Map.Entry<String, String> entry : fileHandler.getFileSet()) {
+			int myDist = Math.min(IDUtils.rightDistance(identifier, entry.getValue()), IDUtils.leftDistance(identifier, entry.getValue()));
+			int peerDist = Math.min(IDUtils.rightDistance(peer.identifier, entry.getValue()), IDUtils.leftDistance(peer.identifier, entry.getValue()));
+			if(peerDist < myDist || (peerDist == myDist && peer.identifier.compareTo(identifier) > 0)) {
+				byte[] fileBytes = Utils.getFileByteArr(entry.getKey());
+				String folder =  entry.getKey().substring(0, entry.getKey().lastIndexOf('/')+1);
+				String filename = entry.getKey().substring(entry.getKey().lastIndexOf('/')+1);
+
+				StoreRequest request = new StoreRequest(entry.getValue(), fileBytes, folder, filename, hostname, port, false);
+				sendEvent(peer.identifier, peer.host, peer.port, request);
+				LOGGER.info("Migrating file " + filename + " to new neighbor with closer ID: " + peer.identifier);
+				deletedFiles.add(entry.getKey());
+			}
+		}
+		for(String file : deletedFiles) {
+			fileHandler.removeFile(file);
+		}
 	}
 
 	private void printStoredFiles() {
@@ -179,7 +200,7 @@ public class PeerNode implements Node{
 
 
 
-			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows(), request.getRouteTrace());
+			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows(), request.getRouteTrace(), request.getHopCount());
 			sender.sendData(response.getBytes());
 			sender.flush();
 			senders.put(request.getDestinationId(), sender);
@@ -229,13 +250,12 @@ public class PeerNode implements Node{
 		int rowIndex = IDUtils.firstNonMatchingIndex(identifier, request.getDestinationId());
 		if(rowIndex >= IDENTITIFER_BITS/4)
 			throw new UnexpectedException("ID of target matches current ID: Node ID's must be unique");
-
+		request.incrementHopCount();
 		request.addRouteID(identifier);
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
-		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(),
-				request.getPort(), request.getDestinationId(), request.getHopCount()));
 		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
 
+		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(), request.getPort(), request.getDestinationId(), request.getHopCount()));
 		routing.aquireTable();
 		for(int row = rowIndex; row >= 0; row--) {
 			if (routing.getRoutingRow(row) != null) {
@@ -246,16 +266,22 @@ public class PeerNode implements Node{
 
 		request.setTableEntryIfEmpty(rowIndex, Integer.parseInt(identifier.substring(rowIndex, rowIndex+1),16), new PeerTriplet(hostname, port, identifier));
 		if(rowColEntry == null || rowColEntry.identifier.equals(request.getDestinationId())) {
-//			LOGGER.info(String.format("Returning entry request to %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
+			LOGGER.info(String.format("Returning entry request to origin %s:%d with id: %s", request.getHost(), request.getPort(), request.getDestinationId()));
+
 			returnToEnteringNode(request);
 		}else {
 //			LOGGER.info(String.format("Forwarding entry request to %s:%d with id: %s", rowColEntry.host, rowColEntry.port, rowColEntry.identifier));
 			request.setForwardPort(this.port);
+			LOGGER.info("Forwarding entry request to peer with ID: " + rowColEntry.identifier);
 			boolean success = forwardRequest(request, rowColEntry);
 			while(!success) {
 				rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
-				success = forwardRequest(request, rowColEntry);
+				if(rowColEntry == null) {
+					returnToEnteringNode(request);
+					return;
+				}else success = forwardRequest(request, rowColEntry);
 			}
+
 		}
 
 
@@ -301,6 +327,12 @@ public class PeerNode implements Node{
 			case FILE_DOWNLOAD_REQUEST:
 				handleFileDownloadRequest((FileDownloadRequest) event);
 				break;
+			case STORE_RESPONSE:
+				StoreResponse response = (StoreResponse) event;
+				if(response.wasSuccess())
+					LOGGER.info("Successfully forwarded file to new node");
+				else LOGGER.warning("Unable to forward file to new node");
+				break;
 			default:
 				LOGGER.warning("No actions found for message of type: " + event.getType());
 				break;
@@ -312,7 +344,7 @@ public class PeerNode implements Node{
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
 		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
-
+		request.incrementHops();
 		if(routingDest == null) {
 			LOGGER.info("Handling file download request with ID: " + request.getIdentifier());
 			retrieveFile(request);
@@ -321,14 +353,18 @@ public class PeerNode implements Node{
 			boolean success = forwardRequest(request, routingDest);
 			while(!success) {
 				routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
-				success = forwardRequest(request, routingDest);
+				if(routingDest == null) {
+					retrieveFile(request);
+					return;
+				}else success = forwardRequest(request, routingDest);
 			}
+			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded file download request to peer with ID: " + routingDest.identifier);
 		}
 	}
 
 	private void retrieveFile(FileDownloadRequest request) {
 		byte[] fileBytes = fileHandler.readFile(request.getFilename());
-		FileDownloadResponse response = new FileDownloadResponse(fileBytes, request.getRoute());
+		FileDownloadResponse response = new FileDownloadResponse(fileBytes, request.getRoute(), request.getHops());
 		try {
 			TCPSender sender = new TCPSender(new Socket(request.getHostname(), request.getPort()));
 			sender.sendData(response.getBytes());
@@ -341,16 +377,18 @@ public class PeerNode implements Node{
 	private void storeFile(StoreRequest request) {
 		boolean success = fileHandler.storeFile(request.getFilename(), request.getDestination(), request.getFileBytes(), request.getIdentifier());
 		if(success) {
-			LOGGER.info("Successfully stored file with name: " + request.getFilename() + " and ID: " + request.getIdentifier());
+			LOGGER.info("Successfully stored file with name: " + request.getFilename() + " and ID: " + request.getIdentifier() + " in " + request.getHops() + " hops");
 //			printRoute(request.getRoute());
 		}
-		StoreResponse response = new StoreResponse(success, request.getRoute());
-		try {
-			TCPSender sender = new TCPSender(new Socket(request.getStoreDataHost(), request.getStoreDataPort()));
-			sender.sendData(response.getBytes());
-			sender.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		StoreResponse response = new StoreResponse(success, request.getRoute(), request.getHops());
+		if(request.getRequestResponse()) {
+			try {
+				TCPSender sender = new TCPSender(new Socket(request.getStoreDataHost(), request.getStoreDataPort()));
+				sender.sendData(response.getBytes());
+				sender.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -359,15 +397,23 @@ public class PeerNode implements Node{
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
 		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+		request.incrementHops();
 		if(routingDest == null) {
 			storeFile(request);
 		}else {
 			boolean success = forwardRequest(request, routingDest);
+
 			while(!success) {
 				routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
-				success = forwardRequest(request, routingDest);
+				if(routingDest == null) {
+					storeFile(request);
+					return;
+				}
+				else success = forwardRequest(request, routingDest);
 			}
+			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded entry request to peer with ID: " + routingDest.identifier);
 		}
+
 
 	}
 
@@ -410,6 +456,7 @@ public class PeerNode implements Node{
 	}
 
 	private void sendFilesToNearestNeighbors() {
+		routing.aquireLeafSet();
 		PeerTriplet left = routing.getLeftNeighbor();
 		PeerTriplet right = routing.getRightNeighbor();
 		for(Map.Entry<String, String> entry : fileHandler.getFileSet()) {
@@ -429,9 +476,11 @@ public class PeerNode implements Node{
 				sendEvent(right.identifier, right.host, right.port, request);
 			}
 		}
+		routing.releaseLeafSet();
 	}
 
 	private void exitGracefully() {
+		tcpServer.stop();
 		routing.aquireLeafSet();
 		for(int i = 0; i < LEAF_SET_SIZE; i++) {
 			PeerTriplet left = routing.getLeftLeafSet()[i];
@@ -444,7 +493,7 @@ public class PeerNode implements Node{
 			sendEvent(right.identifier, right.host, right.port, rightExit);
 		}
 		routing.releaseLeafSet();
-		tcpServer.stop();
+
 		sendFilesToNearestNeighbors();
 		LOGGER.info(String.format("%s exited the network", nickname));
 
@@ -513,16 +562,31 @@ public class PeerNode implements Node{
 				LOGGER.info(Arrays.toString(args));
 				int discoveryPort = Integer.parseInt(args[1]);
 				if(discoveryPort > 65535 || discoveryPort < 1024) throw new NumberFormatException();
-				PeerNode peerNode;
+				PeerNode peerNode = null;
 				if(args.length == 3) {
-					peerNode = new PeerNode(args[0], discoveryPort, args[2]);
+					if(args[2].startsWith("name=")) {
+						peerNode = new PeerNode(args[0], discoveryPort, args[2].substring(5));
+					}else if(args[2].startsWith("id=")) {
+						peerNode = new PeerNode(args[0], discoveryPort, args[2].substring(3), args[2].substring(3));
+					}else {
+						LOGGER.severe("Usage String:[discoveryServer] int:[port] options: [id=String] [name=String]");
+						System.exit(1);
+					}
 				}else if(args.length == 4) {
-					peerNode = new PeerNode(args[0], discoveryPort, args[3], args[2]);
+					if(args[2].startsWith("name=") && args[3].startsWith("id=")) {
+						peerNode = new PeerNode(args[0], discoveryPort, args[3].substring(3), args[2].substring(5));
+					}else if(args[3].startsWith("name=") && args[2].startsWith("id=")) {
+						peerNode = new PeerNode(args[0], discoveryPort, args[2].substring(3), args[3].substring(5));
+					}else {
+						LOGGER.severe("Usage String:[discoveryServer] int:[port] options: [id=String] [name=String]");
+						System.exit(1);
+					}
 				}else {
 					peerNode = new PeerNode(args[0], discoveryPort);
 				}
 				peerNode.init();
 				peerNode.inputHandler();
+
 			}catch(NumberFormatException nfe) {
 				nfe.printStackTrace();
 				LOGGER.severe("Discovery Node requires a valid integer port: 1024 < [port] < 65536");

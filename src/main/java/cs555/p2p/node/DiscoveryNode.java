@@ -85,8 +85,7 @@ public class DiscoveryNode implements Node{
 	private void registerPeer(RegisterRequest request, Socket socket) {
 		HostPort add = new HostPort(socket.getInetAddress().getCanonicalHostName(), request.getPort());
 		HostPort previous = nodeIDMappings.putIfAbsent(request.getIdentifier(), add);
-		LOGGER.info(String.format("Received Register Request from: %s:%d", socket.getInetAddress().getCanonicalHostName(), request.getPort()));
-		LOGGER.info("ID: " + request.getIdentifier());
+		LOGGER.info(String.format("Received Register Request from: %s:%d with ID: %s", socket.getInetAddress().getCanonicalHostName(), request.getPort(), request.getIdentifier()));
 		if(previous != null) registrationFailure(add);
 		else registrationSuccess(add, request.getIdentifier());
 	}
@@ -156,7 +155,7 @@ public class DiscoveryNode implements Node{
 			builder.append(entry.getValue().host);
 			builder.append(':');
 			builder.append(entry.getValue().port);
-			builder.append("\tID: ");
+			builder.append("\t\tID: ");
 			builder.append(entry.getKey());
 			builder.append('\n');
 		}

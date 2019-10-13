@@ -6,7 +6,7 @@ DISCOVERY="juneau"
 PORT="45467"
 #CLIENT="little-rock"
 CHUNK_SERVERS_PER_MACHINE=1
-SPECIFY_IDENTIFIERS=false
+SPECIFY_IDENTIFIERS=true
 
 gnome-terminal --geometry=132x43 -e "ssh -t ${DISCOVERY} 'cd ${HOME}/build/classes/java/main; java cs555.p2p.node.DiscoveryNode ${PORT};bash;'"
 #gnome-terminal --geometry=132x43 -e "ssh -t ${CLIENT} 'cd ${HOME}/build/classes/java/main; java cs555.dfs.server.ClientServer ${SERVER} ${PORT} ${FAULT_TOLERANCE};bash;'"
@@ -30,10 +30,11 @@ for i in `cat machine_list`; do
       if [ $SPECIFY_IDENTIFIERS = true ]
       	then
       		ID=${IDENTIFIERS[identifier]}
+      		ID="id=$ID"
       fi
 
       CURRENT="sleep ${nickname}; ${SCRIPT}"
-      OPTIONS='--tab -e "ssh -t '$i' '$CURRENT' '$NAME' '$ID';"'
+      OPTIONS='--tab -e "ssh -t '$i' '$CURRENT' 'name=$NAME' '$ID';"'
       COMMAND+=" $OPTIONS"
       let "nickname++"
       let "identifier++"

@@ -157,37 +157,65 @@ public class NodeRouting {
 		}
 	}
 
-	private PeerTriplet checkLeftRoutingTable(int row, int col, int minDistance, String destID) {
-		try {
-			routingTableLock.acquire(1);
-			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
-			for(int i = col; i > 0; i--) {
-				if (routingTable[row][i] == null) {
-					continue;
-				}
-				int rightDistance = IDUtils.rightDistance(destID, routingTable[row][i].identifier);
-				if (rightDistance < minDistance) {
-					routingTableLock.release(1);
-					return routingTable[row][i];
-				}
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		routingTableLock.release(1);
-		return null;
-	}
+//	private PeerTriplet checkLeftRoutingTable(int row, int col, int minDistance, String destID) {
+//		try {
+//			routingTableLock.acquire(1);
+//			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
+//			for(int i = col; i > 0; i--) {
+//				if (routingTable[row][i] == null) {
+//					continue;
+//				}
+//				int rightDistance = IDUtils.rightDistance(destID, routingTable[row][i].identifier);
+//				if (rightDistance < minDistance) {
+//					routingTableLock.release(1);
+//					return routingTable[row][i];
+//				}
+//			}
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		routingTableLock.release(1);
+//		return null;
+//	}
+//
+//	private PeerTriplet checkRightRoutingTable(int row, int col, int minDistance, String destID) {
+//		try {
+//			routingTableLock.acquire(1);
+//			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
+//			for(int i = col; i < routingTable[row].length; i++) {
+//				if (routingTable[row][i] == null) {
+//					continue;
+//				}
+//				int leftDistance = IDUtils.leftDistance(destID, routingTable[row][i].identifier);
+//				if (leftDistance < minDistance) {
+//					routingTableLock.release(1);
+//					return routingTable[row][i];
+//				}
+//			}
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		routingTableLock.release(1);
+//		return null;
+//	}
 
-	private PeerTriplet checkRightRoutingTable(int row, int col, int minDistance, String destID) {
+	private PeerTriplet findMinInRow(int row, int startCol, int endCol, int minDistance, String destID, int direction) {
 		try {
 			routingTableLock.acquire(1);
 			if(routingTable[row] == null) routingTable[row] = new PeerTriplet[16];
-			for(int i = col; i < routingTable[row].length; i++) {
+			for(int i = startCol; i < endCol; i++) {
 				if (routingTable[row][i] == null) {
 					continue;
 				}
-				int leftDistance = IDUtils.leftDistance(destID, routingTable[row][i].identifier);
-				if (leftDistance < minDistance) {
+				int distance;
+				if(direction == -1) {
+					distance = IDUtils.leftDistance(routingTable[row][i].identifier, destID);
+				}else if(direction == 1) {
+					distance = IDUtils.rightDistance(routingTable[row][i].identifier, destID);
+				}else {
+					distance = Math.min(IDUtils.rightDistance(routingTable[row][i].identifier, destID), IDUtils.leftDistance(routingTable[row][i].identifier, destID));
+				}
+				if (distance < minDistance) {
 					routingTableLock.release(1);
 					return routingTable[row][i];
 				}
@@ -259,8 +287,10 @@ public class NodeRouting {
 		PeerTriplet minimum = leftDistance < rightDistance && leftDistance < minDist ?
 				left : rightDistance < leftDistance && rightDistance < minDist ? right : null;
 		minDist = Math.min(minDist, Math.min(leftDistance, rightDistance));
-		left = checkLeftRoutingTable(startRow, startCol, minDist, destID);
-		right = checkRightRoutingTable(startRow, startCol, minDist, destID);
+		left = findMinInRow(startRow, 0, startCol, minDist, destID, 0);
+		right = findMinInRow(startRow, startCol, routingTable.length, minDist, destID, 0);
+//		left = checkLeftRoutingTable(startRow, startCol, minDist, destID);
+//		right = checkRightRoutingTable(startRow, startCol, minDist, destID);
 
 		if(left != null) leftDistance = Math.min(IDUtils.rightDistance(left.identifier, destID), IDUtils.leftDistance(left.identifier, destID));
 		else leftDistance = Integer.MAX_VALUE;
@@ -283,19 +313,37 @@ public class NodeRouting {
 		int currentRightDist = IDUtils.rightDistance(identifier, destID);
 		int currentLeftDist = IDUtils.leftDistance(identifier, destID);
 		PeerTriplet peer;
-		if(currentLeftDist <= currentRightDist) peer = findPeerInLeafSet(leftLeafSet, destID, currentLeftDist, true);
-		else peer = findPeerInLeafSet(rightLeafset, destID, currentRightDist, false);
+		if(currentLeftDist <= currentRightDist) {
+			peer = findPeerInLeafSet(leftLeafSet, destID, currentLeftDist, true);
+			if(peer != null) currentLeftDist = IDUtils.leftDistance(peer.identifier, destID);
+		}
+		else {
+			peer = findPeerInLeafSet(rightLeafset, destID, currentRightDist, false);
+			if(peer != null) currentRightDist = IDUtils.rightDistance(peer.identifier, destID);
+		}
 
 		if(peer == null) return null;
 
-		PeerTriplet dest;
-		if(currentLeftDist <= currentRightDist) {
-			 dest = checkLeftRoutingTable(startRow, startCol, currentLeftDist, destID);
-		}else {
-			dest = checkRightRoutingTable(startRow, startCol, currentRightDist, destID);
-		}
+		int direction = currentLeftDist <= currentRightDist ? -1 : 1;
+		PeerTriplet destLeft = findMinInRow(startRow, 0, startCol, Math.min(currentLeftDist, currentRightDist), destID, direction);
+		PeerTriplet destRight = findMinInRow(startRow, startCol+1, routingTable.length, Math.min(currentLeftDist, currentRightDist), destID, direction);
+//		PeerTriplet destLeft = checkRightRoutingTable(startRow, startCol, Math.min(currentLeftDist, currentRightDist), destID);
+//		PeerTriplet destRight = checkLeftRoutingTable(startRow, startCol, Math.min(currentLeftDist, currentRightDist), destID);
 
-		return dest == null ? peer : dest;
+		if(destLeft != null && destRight != null) {
+			if(currentLeftDist <= currentRightDist) {
+				int rightDist = IDUtils.leftDistance(destRight.identifier, destID);
+				int leftDist = IDUtils.leftDistance(destLeft.identifier, destID);
+				return leftDist < rightDist ? destLeft : destRight;
+			}else {
+				int rightDist = IDUtils.rightDistance(destRight.identifier, destID);
+				int leftDist = IDUtils.rightDistance(destLeft.identifier, destID);
+				return leftDist < rightDist ? destLeft : destRight;
+			}
+		}else if(destLeft != null) return destLeft;
+		else if(destRight != null) return destRight;
+
+		return peer;
 	}
 
 	public boolean removeEntry(String identifier) {

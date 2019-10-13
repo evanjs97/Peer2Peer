@@ -12,6 +12,9 @@ public class EntryAcceptanceResponse implements Event{
 	private final PeerTriplet[] rightLeafSet;
 	private final PeerTriplet[] leftLeafSet;
 	private final List<String> route;
+	private int hops;
+
+	public int getHops() { return hops; }
 
 	public PeerTriplet[][] getTableRows() {
 		return tableRows;
@@ -29,11 +32,12 @@ public class EntryAcceptanceResponse implements Event{
 		return route;
 	}
 
-	public EntryAcceptanceResponse(PeerTriplet[] leftLeafSet, PeerTriplet[] rightLeafSet, PeerTriplet[][] tableRows, List<String> route) {
+	public EntryAcceptanceResponse(PeerTriplet[] leftLeafSet, PeerTriplet[] rightLeafSet, PeerTriplet[][] tableRows, List<String> route, int hops) {
 		this.tableRows = tableRows;
 		this.rightLeafSet = rightLeafSet;
 		this.leftLeafSet = leftLeafSet;
 		this.route = route;
+		this.hops = hops;
 	}
 
 	public EntryAcceptanceResponse(DataInputStream din) {
@@ -47,6 +51,7 @@ public class EntryAcceptanceResponse implements Event{
 			rightSet = messageReader.read1DPeerArray();
 			leftSet = messageReader.read1DPeerArray();
 			messageReader.readStringList(route);
+			hops = messageReader.readInt();
 			messageReader.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -69,6 +74,7 @@ public class EntryAcceptanceResponse implements Event{
 		messageMarshaller.write1DPeerArray(rightLeafSet);
 		messageMarshaller.write1DPeerArray(leftLeafSet);
 		messageMarshaller.writeStringList(route);
+		messageMarshaller.writeInt(hops);
 		return messageMarshaller.getMarshalledData();
 	}
 }

@@ -136,7 +136,6 @@ public class EntryRequest implements Event{
 	@Override
 	public byte[] getBytes() throws IOException {
 		MessageMarshaller messageMarshaller = new MessageMarshaller();
-		System.out.println("WRITING: " + host +":" +port + " DEST: " + destinationId);
 		messageMarshaller.writeInt(getType().getValue());
 		messageMarshaller.writeString(host);
 		messageMarshaller.writeInt(port);

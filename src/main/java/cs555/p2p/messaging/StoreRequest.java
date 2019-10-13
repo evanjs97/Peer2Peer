@@ -14,6 +14,13 @@ public class StoreRequest implements Event{
 	private String storeDataHost;
 	private int storeDataPort;
 	private boolean requestResponse;
+	public int hops;
+
+	public void incrementHops() { hops++; }
+
+	public int getHops() { return hops; }
+
+	public boolean getRequestResponse() { return requestResponse; }
 
 	public List<String> getRoute() {
 		return route;
@@ -53,6 +60,8 @@ public class StoreRequest implements Event{
 		this.filename = filename;
 		this.storeDataHost = hostname;
 		this.storeDataPort = port;
+		this.requestResponse = requestResponse;
+		this.hops = 1;
 	}
 
 	public StoreRequest(String identifier, byte[] fileBytes, String destination, String filename, String hostname, int port) {
@@ -70,6 +79,8 @@ public class StoreRequest implements Event{
 			filename = messageReader.readString();
 			storeDataHost = messageReader.readString();
 			storeDataPort = messageReader.readInt();
+			requestResponse = messageReader.readBoolean();
+			hops = messageReader.readInt();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -91,6 +102,8 @@ public class StoreRequest implements Event{
 		messageMarshaller.writeString(filename);
 		messageMarshaller.writeString(storeDataHost);
 		messageMarshaller.writeInt(storeDataPort);
+		messageMarshaller.writeBoolean(requestResponse);
+		messageMarshaller.writeInt(hops);
 		return messageMarshaller.getMarshalledData();
 	}
 }

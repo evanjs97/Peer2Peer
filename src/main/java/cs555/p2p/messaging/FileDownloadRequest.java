@@ -11,6 +11,11 @@ public class FileDownloadRequest implements Event{
 	private String filename;
 	private String identifier;
 	private List<String> route;
+	private int hops;
+
+	public void incrementHops() { hops++; }
+
+	public int getHops() { return hops; }
 
 	public String getHostname() {
 		return hostname;
@@ -36,6 +41,7 @@ public class FileDownloadRequest implements Event{
 		this.filename = filename;
 		this.identifier = identifier;
 		this.route = new ArrayList<>();
+		this.hops = 1;
 	}
 
 	public FileDownloadRequest(DataInputStream din) {
@@ -47,6 +53,7 @@ public class FileDownloadRequest implements Event{
 			this.filename = messageReader.readString();
 			this.identifier = messageReader.readHex();
 			messageReader.readStringList(route);
+			this.hops = messageReader.readInt();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -66,6 +73,7 @@ public class FileDownloadRequest implements Event{
 		messageMarshaller.writeString(filename);
 		messageMarshaller.writeHex(identifier);
 		messageMarshaller.writeStringList(route);
+		messageMarshaller.writeInt(hops);
 		return messageMarshaller.getMarshalledData();
 	}
 }

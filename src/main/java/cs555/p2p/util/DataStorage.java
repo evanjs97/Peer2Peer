@@ -140,13 +140,12 @@ public class DataStorage implements Node{
 	}
 
 	public void writeFileToDisk(FileDownloadResponse response) {
-		LOGGER.info("Downloaded " + response.getFileBytes().length + " bytes");
+
 		if(response.getFileBytes() == null) {
 			LOGGER.severe("Error during file retrieval");
 			printRoute(response.getRoute());
 			System.exit(1);
 		}
-
 		String temp = filename.contains("/") ? filename.substring(filename.lastIndexOf('/')+1) : filename;
 		String separator = fileDest.charAt(fileDest.length()-1) == '/' ? "" : "/";
 		File file = new File(fileDest+separator);
@@ -157,7 +156,7 @@ public class DataStorage implements Node{
 		try {
 			FileOutputStream fileOutputStream = new FileOutputStream(actualFile);
 			fileOutputStream.write(response.getFileBytes());
-			LOGGER.info("Successfully wrote file to disk");
+			LOGGER.info("Successfully downloaded file in " + response.getHops() + " hops");
 			printRoute(response.getRoute());
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -171,7 +170,7 @@ public class DataStorage implements Node{
 
 	public void handleStoreResponse(StoreResponse response) {
 		if(response.wasSuccess()) {
-			LOGGER.info("File was successfully uploaded");
+			LOGGER.info("File was successfully uploaded in " + response.getHops() + " hops");
 			printRoute(response.getRoute());
 		}else {
 			LOGGER.severe("Failed to upload the file");
