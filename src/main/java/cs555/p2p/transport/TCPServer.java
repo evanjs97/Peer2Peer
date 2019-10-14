@@ -6,12 +6,15 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TCPServer implements Runnable{
 	private ServerSocket serverSocket;
 	private int port;
 	private Node node;
 	private volatile boolean done;
+	private List<TCPReceiver> receivers;
 
 	/**
 	 * TCPServerThread constructor creates new Server thread
@@ -22,6 +25,7 @@ public class TCPServer implements Runnable{
 		openServerSocket(port);
 		this.done = false;
 		this.port = this.serverSocket.getLocalPort();
+		receivers = new ArrayList<>();
 	}
 
 	/**
@@ -39,6 +43,13 @@ public class TCPServer implements Runnable{
 
 	public void stop() {
 		this.done = true;
+	}
+
+	private void cleanup() {
+		for(TCPReceiver receiver : receivers) {
+			receiver.close();
+		}
+		receivers.clear();
 	}
 
 	public InetAddress getInetAddress() {
@@ -62,10 +73,13 @@ public class TCPServer implements Runnable{
 		while (!done) {
 			try {
 				Socket socket = serverSocket.accept();
-				new Thread(new TCPReceiver(socket, node)).start();
+				TCPReceiver receiver = new TCPReceiver(socket, node);
+				receivers.add(receiver);
+				new Thread(receiver).start();
 			} catch (IOException ioe) {
 				System.out.println(ioe.getMessage());
 			}
 		}
+		cleanup();
 	}
 }

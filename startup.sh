@@ -4,10 +4,10 @@ HOME="$( cd "$( dirname "$0" )" && pwd )"
 
 DISCOVERY="juneau"
 PORT="45467"
-#CLIENT="little-rock"
-CHUNK_SERVERS_PER_MACHINE=1
-SPECIFY_IDENTIFIERS=true
+PEERS_PER_MACHINE=$1
+SPECIFY_IDENTIFIERS=$2
 
+echo $HOME
 gnome-terminal --geometry=132x43 -e "ssh -t ${DISCOVERY} 'cd ${HOME}/build/classes/java/main; java cs555.p2p.node.DiscoveryNode ${PORT};bash;'"
 #gnome-terminal --geometry=132x43 -e "ssh -t ${CLIENT} 'cd ${HOME}/build/classes/java/main; java cs555.dfs.server.ClientServer ${SERVER} ${PORT} ${FAULT_TOLERANCE};bash;'"
 
@@ -16,18 +16,18 @@ SCRIPT="cd ${HOME}/build/classes/java/main; java cs555.p2p.node.PeerNode ${DISCO
 COMMAND="gnome-terminal --geometry=150x50"
 
 sleep 3
-mapfile -t NICKNAMES < nicknames;
-mapfile -t IDENTIFIERS < identifiers;
+mapfile -t NICKNAMES < ${HOME}/nicknames;
+mapfile -t IDENTIFIERS < ${HOME}/identifiers;
 
 nickname=0;
 identifier=0;
-for i in `cat machine_list`; do
-	for j in `seq 1 ${CHUNK_SERVERS_PER_MACHINE}`; do
+for i in `cat ${HOME}/machine_list`; do
+	for j in `seq 1 ${PEERS_PER_MACHINE}`; do
       		echo 'logging into '${i}
       		NAME=${NICKNAMES[${nickname}]}
       		NAME="${NAME// /_}"
       		ID=''
-      if [ $SPECIFY_IDENTIFIERS = true ]
+      if [[ $SPECIFY_IDENTIFIERS = true ]]
       	then
       		ID=${IDENTIFIERS[identifier]}
       		ID="id=$ID"

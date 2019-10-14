@@ -92,10 +92,11 @@ public class DiscoveryNode implements Node{
 
 	private HostPort getRandomPeer(String id) {
 		Object[] keys = nodeIDMappings.keySet().toArray();
-		if(keys.length == 1) return null;
+		if(keys.length == 0) return null;
 		int index = ThreadLocalRandom.current().nextInt(0, keys.length);
 		String key = (String) keys[index];
 		if(key.equals(id)) {
+			if(keys.length == 1) return null;
 			if(index == 0) key = (String) keys[index+1];
 			else key = (String) keys[index-1];
 		}

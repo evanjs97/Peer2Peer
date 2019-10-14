@@ -167,7 +167,7 @@ public class IDUtils {
 		if(id1.length() != id2.length())
 			throw new UnsupportedOperationException("Node identifiers must be of equal length: id1 length: " + id1.length() + " id2 length: " + id2.length());
 		for(int i = 0; i < id1.length(); i++) {
-			if(id1.charAt(i) != id2.charAt(i)) return i;
+			if(Character.toLowerCase(id1.charAt(i)) != Character.toLowerCase(id2.charAt(i))) return i;
 		}
 		return id1.length();
 	}

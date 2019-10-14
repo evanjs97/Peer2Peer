@@ -140,7 +140,8 @@ public class DataStorage implements Node{
 	}
 
 	public void writeFileToDisk(FileDownloadResponse response) {
-
+		response.getRoute().add(0, "Store Program");
+		response.getRoute().add("Store Program");
 		if(response.getFileBytes() == null) {
 			LOGGER.severe("Error during file retrieval");
 			printRoute(response.getRoute());
@@ -171,6 +172,8 @@ public class DataStorage implements Node{
 	public void handleStoreResponse(StoreResponse response) {
 		if(response.wasSuccess()) {
 			LOGGER.info("File was successfully uploaded in " + response.getHops() + " hops");
+			response.getRoute().add(0, "Store Program");
+			response.getRoute().add("Store Program");
 			printRoute(response.getRoute());
 		}else {
 			LOGGER.severe("Failed to upload the file");

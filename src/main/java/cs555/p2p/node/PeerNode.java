@@ -37,7 +37,7 @@ public class PeerNode implements Node{
 	private String nickname;
 
 	private NodeRouting routing;
-	private final ConcurrentHashMap<String, TCPSender> senders;
+//	private final ConcurrentHashMap<String, TCPSender> senders;
 
 	private PeerNode(String discoveryHost, int discoveryPort) {
 		this(discoveryHost, discoveryPort, null, 0, null);
@@ -54,7 +54,7 @@ public class PeerNode implements Node{
 	private PeerNode(String discoveryHost, int discoveryPort, String identifier, int port, String nickname) {
 		this.discoveryHost = discoveryHost;
 		this.discoveryPort = discoveryPort;
-		this.senders = new ConcurrentHashMap<>();
+//		this.senders = new ConcurrentHashMap<>();
 		this.port = port;
 		try {
 			this.hostname = InetAddress.getLocalHost().getCanonicalHostName();
@@ -162,7 +162,7 @@ public class PeerNode implements Node{
 			int peerDist = Math.min(IDUtils.rightDistance(peer.identifier, entry.getValue()), IDUtils.leftDistance(peer.identifier, entry.getValue()));
 			if(peerDist < myDist || (peerDist == myDist && peer.identifier.compareTo(identifier) > 0)) {
 				byte[] fileBytes = Utils.getFileByteArr(entry.getKey());
-				String folder =  entry.getKey().substring(0, entry.getKey().lastIndexOf('/')+1);
+				String folder =  entry.getKey().substring(entry.getKey().lastIndexOf("/tmp/evanjs/")+12, entry.getKey().lastIndexOf('/')+1);
 				String filename = entry.getKey().substring(entry.getKey().lastIndexOf('/')+1);
 
 				StoreRequest request = new StoreRequest(entry.getValue(), fileBytes, folder, filename, hostname, port, false);
@@ -202,8 +202,8 @@ public class PeerNode implements Node{
 
 			EntryAcceptanceResponse response = new EntryAcceptanceResponse(neighborLeftSet, neighborRightSet, request.getTableRows(), request.getRouteTrace(), request.getHopCount());
 			sender.sendData(response.getBytes());
-			sender.flush();
-			senders.put(request.getDestinationId(), sender);
+			sender.close();
+//			senders.put(request.getDestinationId(), sender);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -213,6 +213,7 @@ public class PeerNode implements Node{
 
 		boolean success = sendEvent(dest.identifier, dest.host, dest.port, request);
 		if(!success) {
+			LOGGER.info("Found dead peer in routing table with ID: " + dest.identifier + " pruning...");
 			routing.removeEntry(dest.identifier);
 			return false;
 		}else return true;
@@ -221,21 +222,21 @@ public class PeerNode implements Node{
 
 	private boolean sendEvent(String identifier, String host, int port, Event event) {
 		try {
-			senders.computeIfAbsent(identifier, id -> {
-				try {
-					return new TCPSender(new Socket(host, port));
-				} catch (IOException e) {
-					return null;
-				}
-			}).sendData(event.getBytes());
+			TCPSender sender = new TCPSender(new Socket(host, port));
+			sender.sendData(event.getBytes());
+			sender.close();
+//			senders.computeIfAbsent(identifier, id -> {
+//				try {
+//					return new TCPSender(new Socket(host, port));
+//				} catch (IOException e) {
+//					return null;
+//				}
+//			}).sendData(event.getBytes());
 
-		} catch (IOException e) {
-			senders.remove(identifier);
+		} catch (Exception e) {
+//			senders.remove(identifier);
 			return false;
 //			e.printStackTrace();
-		} catch (NullPointerException npe) {
-			senders.remove(identifier);
-			return false;
 		}
 		return true;
 	}
@@ -253,7 +254,7 @@ public class PeerNode implements Node{
 		request.incrementHopCount();
 		request.addRouteID(identifier);
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
-		PeerTriplet rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
+		PeerTriplet rowColEntry = routing.findClosestPeer(request.getDestinationId());
 
 		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(), request.getPort(), request.getDestinationId(), request.getHopCount()));
 		routing.aquireTable();
@@ -275,7 +276,7 @@ public class PeerNode implements Node{
 			LOGGER.info("Forwarding entry request to peer with ID: " + rowColEntry.identifier);
 			boolean success = forwardRequest(request, rowColEntry);
 			while(!success) {
-				rowColEntry = routing.findRoutingDest(rowIndex, colIndex, request.getDestinationId());
+				rowColEntry = routing.findClosestPeer(request.getDestinationId());
 				if(rowColEntry == null) {
 					returnToEnteringNode(request);
 					return;
@@ -343,7 +344,7 @@ public class PeerNode implements Node{
 		request.updateRoute(identifier);
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
-		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+		PeerTriplet routingDest = routing.findDataRoute(request.getIdentifier());
 		request.incrementHops();
 		if(routingDest == null) {
 			LOGGER.info("Handling file download request with ID: " + request.getIdentifier());
@@ -352,7 +353,7 @@ public class PeerNode implements Node{
 			LOGGER.info("Forwarding file download request with ID: " + request.getIdentifier());
 			boolean success = forwardRequest(request, routingDest);
 			while(!success) {
-				routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+				routingDest = routing.findDataRoute(request.getIdentifier());
 				if(routingDest == null) {
 					retrieveFile(request);
 					return;
@@ -396,7 +397,7 @@ public class PeerNode implements Node{
 		request.updateRoute(identifier);
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
-		PeerTriplet routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+		PeerTriplet routingDest = routing.findDataRoute(request.getIdentifier());
 		request.incrementHops();
 		if(routingDest == null) {
 			storeFile(request);
@@ -404,14 +405,14 @@ public class PeerNode implements Node{
 			boolean success = forwardRequest(request, routingDest);
 
 			while(!success) {
-				routingDest = routing.findClosestPeer(row, col, request.getIdentifier());
+				routingDest = routing.findDataRoute(request.getIdentifier());
 				if(routingDest == null) {
 					storeFile(request);
 					return;
 				}
 				else success = forwardRequest(request, routingDest);
 			}
-			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded entry request to peer with ID: " + routingDest.identifier);
+			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded store request to peer with ID: " + routingDest.identifier);
 		}
 
 
@@ -464,9 +465,10 @@ public class PeerNode implements Node{
 			byte[] fileBytes= Utils.getFileByteArr(entry.getKey());
 			int leftDist = IDUtils.rightDistance(left.identifier, entry.getValue());
 			int rightDist = IDUtils.leftDistance(right.identifier, entry.getValue());
-			String folder =  entry.getKey().substring(0, entry.getKey().lastIndexOf('/')+1);
+			String folder =  entry.getKey().substring(entry.getKey().lastIndexOf("/tmp/evanjs/")+12, entry.getKey().lastIndexOf('/')+1);
 			String filename = entry.getKey().substring(entry.getKey().lastIndexOf('/')+1);
 
+			LOGGER.info("File FOlder:" + folder + " Filename: " + filename);
 			StoreRequest request = new StoreRequest(entry.getValue(), fileBytes, folder, filename, hostname, port, false);
 			if(leftDist <= rightDist) {
 				LOGGER.info("Sending file to neighbor: " + entry.getKey() + " with id: " + left.identifier);

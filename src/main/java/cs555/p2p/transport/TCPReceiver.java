@@ -14,6 +14,7 @@ public class TCPReceiver implements Runnable {
 	private Socket socket;
 	private DataInputStream din;
 	private Node node;
+	private volatile boolean done;
 
 	/**
 	 * TCPReceiverThread creates new receiver thread instance
@@ -24,6 +25,11 @@ public class TCPReceiver implements Runnable {
 		this.node = node;
 		this.socket = socket;
 		this.din = new DataInputStream(socket.getInputStream());
+		this.done = false;
+	}
+
+	public void close() {
+		done = true;
 	}
 
 	/**
@@ -34,7 +40,7 @@ public class TCPReceiver implements Runnable {
 	@Override
 	public void run() {
 		int dataLength = 0;
-		while (socket != null && socket.isConnected()) {
+		while (socket != null && socket.isConnected() && !done) {
 			try {
 				dataLength = din.readInt();
 				byte[] data = new byte[dataLength];
@@ -50,6 +56,11 @@ public class TCPReceiver implements Runnable {
 				System.err.println("TCPReceiver: INVALID SIZE: " + dataLength);
 				ne.printStackTrace();
 			}
+		}
+		try {
+			if(socket!=null) socket.close();
+		} catch (Exception e) {
+
 		}
 	}
 }
