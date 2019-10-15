@@ -6,9 +6,12 @@ DISCOVERY="juneau"
 PORT="45467"
 PEERS_PER_MACHINE=$1
 SPECIFY_IDENTIFIERS=$2
+FIRST=$3
 
-echo $HOME
-gnome-terminal --geometry=132x43 -e "ssh -t ${DISCOVERY} 'cd ${HOME}/build/classes/java/main; java cs555.p2p.node.DiscoveryNode ${PORT};bash;'"
+if [[ $FIRST = true ]]
+	then
+	gnome-terminal --geometry=132x43 -e "ssh -t ${DISCOVERY} 'cd ${HOME}/build/classes/java/main; java cs555.p2p.node.DiscoveryNode ${PORT};bash;'"
+fi
 #gnome-terminal --geometry=132x43 -e "ssh -t ${CLIENT} 'cd ${HOME}/build/classes/java/main; java cs555.dfs.server.ClientServer ${SERVER} ${PORT} ${FAULT_TOLERANCE};bash;'"
 
 
