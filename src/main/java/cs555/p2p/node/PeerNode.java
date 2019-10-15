@@ -297,8 +297,10 @@ public class PeerNode implements Node{
 				p2pEntry((RegistrationSuccess) event);
 				break;
 			case ID_NOT_AVAILABLE:
-				LOGGER.info(String.format("Collision using ID: %s, entering with new ID", identifier));
+
+				LOGGER.info(String.format("Collision using ID: %s", identifier));
 				generateID();
+				LOGGER.info(String.format("Starting up with new ID: %s", identifier));
 				register();
 				break;
 			case ENTRY_REQUEST:

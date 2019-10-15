@@ -50,7 +50,7 @@ public class Logging {
 			if(routingTable[row] != null) {
 				for (PeerTriplet peer : routingTable[row]) {
 					if (peer != null)
-						builder.append(Utils.formatString(peer.identifier, 7));
+						builder.append(Utils.formatString(" " + peer.identifier, 7));
 					else builder.append(Utils.formatString("",7));
 					builder.append('|');
 				}

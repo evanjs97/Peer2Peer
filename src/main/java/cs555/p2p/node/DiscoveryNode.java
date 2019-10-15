@@ -153,6 +153,7 @@ public class DiscoveryNode implements Node{
 	private void printNodes() {
 		StringBuilder builder = new StringBuilder();
 		builder.append('\n');
+		builder.append(nodeIDMappings.size());
 		builder.append("Registered Nodes\n");
 		for(Map.Entry<String, HostPort> entry : nodeIDMappings.entrySet()) {
 			builder.append("Host: ");
