@@ -143,7 +143,7 @@ public class DataStorage implements Node{
 		response.getRoute().add(0, "Store Program");
 		response.getRoute().add("Store Program");
 		if(response.getFileBytes() == null) {
-			LOGGER.severe("Error during file retrieval");
+			LOGGER.severe("Error during file retrieval: File not found");
 			printRoute(response.getRoute());
 			System.exit(1);
 		}
@@ -220,8 +220,13 @@ public class DataStorage implements Node{
 	public void onEvent(Event event, Socket socket) {
 		switch (event.getType()) {
 			case PEER_RESPONSE:
-				if(this.command == Command.PUT) this.sendFile((PeerResponse) event);
-				else if(this.command == Command.GET) this.sendFileRequest((PeerResponse) event);
+				PeerResponse response = (PeerResponse) event;
+				if(response.getHostname() == null || response.getHostname().isEmpty()) {
+					LOGGER.severe("No nodes found in system");
+					System.exit(1);
+				}
+				if(this.command == Command.PUT) this.sendFile(response);
+				else if(this.command == Command.GET) this.sendFileRequest(response);
 				break;
 			case STORE_RESPONSE:
 				this.handleStoreResponse((StoreResponse) event);

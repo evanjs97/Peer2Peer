@@ -3,6 +3,7 @@ package cs555.p2p.node;
 import cs555.p2p.messaging.*;
 import cs555.p2p.transport.TCPSender;
 import cs555.p2p.transport.TCPServer;
+import cs555.p2p.util.Utils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -119,7 +120,9 @@ public class DiscoveryNode implements Node{
 
 	public void handlePeerRequest(PeerRequest request, Socket socket) {
 		HostPort hostPort = getRandomPeer(request.getIdentifier());
-		PeerResponse peerResponse = new PeerResponse(hostPort.host, hostPort.port);
+		PeerResponse peerResponse;
+		if(hostPort != null) peerResponse = new PeerResponse(hostPort.host, hostPort.port);
+		else peerResponse = new PeerResponse("",0);
 		try {
 			TCPSender sender = new TCPSender(new Socket(socket.getInetAddress().getCanonicalHostName(), request.getPort()));
 			sender.sendData(peerResponse.getBytes());
@@ -153,10 +156,10 @@ public class DiscoveryNode implements Node{
 		builder.append("Registered Nodes\n");
 		for(Map.Entry<String, HostPort> entry : nodeIDMappings.entrySet()) {
 			builder.append("Host: ");
-			builder.append(entry.getValue().host);
-			builder.append(':');
-			builder.append(entry.getValue().port);
-			builder.append("\t\tID: ");
+			builder.append(Utils.formatString(entry.getValue().host+":"+entry.getKey(),50));
+//			builder.append(':');
+//			builder.append(entry.getValue().port);
+			builder.append("ID: ");
 			builder.append(entry.getKey());
 			builder.append('\n');
 		}

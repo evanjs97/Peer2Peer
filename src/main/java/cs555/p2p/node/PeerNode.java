@@ -251,12 +251,14 @@ public class PeerNode implements Node{
 		int rowIndex = IDUtils.firstNonMatchingIndex(identifier, request.getDestinationId());
 		if(rowIndex >= IDENTITIFER_BITS/4)
 			throw new UnexpectedException("ID of target matches current ID: Node ID's must be unique");
-		request.incrementHopCount();
+
 		request.addRouteID(identifier);
 		int colIndex = Integer.parseInt(request.getDestinationId().substring(rowIndex, rowIndex+1), 16);
 		PeerTriplet rowColEntry = routing.findClosestPeer(request.getDestinationId());
 
 		LOGGER.info(String.format("Received entry request from %s:%d with id %s and hop count: %d", request.getHost(), request.getPort(), request.getDestinationId(), request.getHopCount()));
+		request.incrementHopCount();
+
 		routing.aquireTable();
 		for(int row = rowIndex; row >= 0; row--) {
 			if (routing.getRoutingRow(row) != null) {
@@ -345,7 +347,9 @@ public class PeerNode implements Node{
 		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
 		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
 		PeerTriplet routingDest = routing.findDataRoute(request.getIdentifier());
+		LOGGER.info("Received file download request with Hop Count: " + request.getHops());
 		request.incrementHops();
+
 		if(routingDest == null) {
 			LOGGER.info("Handling file download request with ID: " + request.getIdentifier());
 			retrieveFile(request);
@@ -359,7 +363,7 @@ public class PeerNode implements Node{
 					return;
 				}else success = forwardRequest(request, routingDest);
 			}
-			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded file download request to peer with ID: " + routingDest.identifier);
+			LOGGER.info("Forwarded file download request with ID: " + request.getIdentifier() + " to peer with ID: " + routingDest.identifier);
 		}
 	}
 
@@ -395,9 +399,10 @@ public class PeerNode implements Node{
 
 	private void handleStoreRequest(StoreRequest request) {
 		request.updateRoute(identifier);
-		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
-		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
+//		int row = IDUtils.firstNonMatchingIndex(identifier, request.getIdentifier());
+//		int col = Integer.parseInt(request.getIdentifier().substring(row, row+1),16);
 		PeerTriplet routingDest = routing.findDataRoute(request.getIdentifier());
+		LOGGER.info("Received file store request with Hop Count: " + request.getHops());
 		request.incrementHops();
 		if(routingDest == null) {
 			storeFile(request);
@@ -412,7 +417,7 @@ public class PeerNode implements Node{
 				}
 				else success = forwardRequest(request, routingDest);
 			}
-			LOGGER.info("Hop Count: " + request.getHops() + " Forwarded store request to peer with ID: " + routingDest.identifier);
+			LOGGER.info("Forwarded store request to peer with ID: " + routingDest.identifier);
 		}
 
 
