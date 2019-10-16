@@ -121,19 +121,20 @@ public class PeerNode implements Node{
 
 	private void sendInfoToPeers() {
 		routing.aquireTable();
-
+		HashSet<String> sent = new HashSet<>();
 		EntranceBroadcast broadcast = new EntranceBroadcast(new PeerTriplet(hostname, port, identifier));
 		for(PeerTriplet[] row : routing.getRoutingTable()) {
 			if(row != null) {
 				for(PeerTriplet peer : row) {
-					if(peer != null) {
+					if(peer != null && !sent.contains(peer.identifier)) {
+						sent.add(peer.identifier);
 						sendEvent(peer.identifier, peer.host, peer.port, broadcast);
 					}
 				}
 			}
 		}
 		routing.releaseTable();
-		sendMessageToLeafNodes(broadcast);
+		sendMessageToLeafNodes(broadcast, sent);
 	}
 
 	private void handleEntranceBroadCast(EntranceBroadcast broadcast) {
@@ -452,13 +453,15 @@ public class PeerNode implements Node{
 		sendTraversal(request);
 	}
 
-	private void sendMessageToLeafNodes(Event event) {
+	private void sendMessageToLeafNodes(Event event, HashSet<String> sent) {
 		routing.aquireLeafSet();
 		for(PeerTriplet peer : routing.getLeftLeafSet()) {
-			sendEvent(peer.identifier, peer.host, peer.port, event);
+			if(!sent.contains(peer.identifier))
+				sendEvent(peer.identifier, peer.host, peer.port, event);
 		}
 		for(PeerTriplet peer : routing.getRightLeafset()) {
-			sendEvent(peer.identifier, peer.host, peer.port, event);
+			if(!sent.contains(peer.identifier))
+				sendEvent(peer.identifier, peer.host, peer.port, event);
 		}
 		routing.releaseLeafSet();
 	}
